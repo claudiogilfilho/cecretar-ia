@@ -1,5 +1,27 @@
 {
   "version": "7",
   "dialect": "mysql",
-  "entries": []
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1787007758027,
+      "tag": "0000_stormy_madrox",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1787008106190,
+      "tag": "0001_lame_toxin",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1787008171558,
+      "tag": "0002_tense_shotgun",
+      "breakpoints": true
+    }
+  ]
 }
