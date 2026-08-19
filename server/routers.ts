@@ -16,7 +16,10 @@ import {
   updateAppointment,
   updateConversation,
   updateQualificationFields,
+  getWhatsAppChannel,
+  updateWhatsAppChannel,
 } from "./db";
+import { WHATSAPP_WEBHOOK_PATH } from "./whatsappCloud";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -158,6 +161,23 @@ export const appRouter = router({
     cancel: publicProcedure.input(z.object({ appointmentId: z.number() })).mutation(async ({ input }) => {
       await updateAppointment(input.appointmentId, { status: "canceled" });
       return { success: true };
+    }),
+  }),
+  whatsapp: router({
+    getConfig: publicProcedure.query(async () => ({
+      channel: await getWhatsAppChannel(),
+      webhookPath: WHATSAPP_WEBHOOK_PATH,
+      hasToken: Boolean(process.env.META_WHATSAPP_ACCESS_TOKEN),
+      hasVerifyToken: Boolean(process.env.META_WEBHOOK_VERIFY_TOKEN),
+      hasAppSecret: Boolean(process.env.META_APP_SECRET),
+    })),
+    saveDraft: publicProcedure.input(z.object({
+      displayPhoneNumber: z.string().max(40).optional(),
+      phoneNumberId: z.string().max(80).optional(),
+      wabaId: z.string().max(80).optional(),
+    })).mutation(async ({ input }) => {
+      const status = input.phoneNumberId ? "ready" : "draft";
+      return updateWhatsAppChannel({ ...input, status, lastError: null });
     }),
   }),
 });

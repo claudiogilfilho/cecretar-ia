@@ -15,3 +15,32 @@
 - [x] Validar responsividade, acessibilidade, tipagem e experiência visual do MVP.
 - [x] Salvar checkpoint do MVP para disponibilizar a primeira versão testável.
 - [ ] Salvar checkpoint final do projeto quando todas as tarefas estiverem concluídas.
+- [ ] Criar onboarding multiempresa para que cada cliente configure o próprio agente sem depender de suporte técnico.
+- [ ] Configurar credenciais OAuth gerenciadas pela CECRETAR.IA para que empresas autorizem seu próprio Google Calendar dentro do painel.
+- [ ] Implementar a conexão de calendário por empresa, armazenando autorização e calendário selecionado de forma isolada por conta.
+- [x] Manter o produto em modo de piloto interno, sem fluxo de venda, cobrança ou autoassinatura nesta fase.
+- [ ] Definir no piloto os cenários de aprovação para preço, localização, mídia, qualificação, transferência humana e agendamento interno.
+- [ ] Executar conversas de teste no simulador e registrar os resultados para revisão do comportamento do agente.
+- [ ] Ajustar as respostas e regras do agente conforme os achados do teste do Duconde.
+- [x] Comparar a Cloud API oficial da Meta e provedores oficiais para definir a ponte de WhatsApp do Duconde.
+- [ ] Definir o procedimento seguro de migração do número atualmente ligado ao GPT Maker para o piloto da CECRETAR.IA.
+- [x] Preparar no produto a configuração de canal WhatsApp por empresa, sem ativar o número principal antes da validação do piloto.
+- [ ] Configurar um canal Meta Cloud API de teste para o Duconde, mantendo o número atual no GPT Maker sem alteração.
+- [x] Implementar o recebimento seguro de Webhooks e o envio de respostas pelo canal de teste da Meta.
+- [ ] Validar uma conversa ponta a ponta entre WhatsApp, CECRETAR.IA e o agente do Duconde antes de planejar a migração do número principal.
+- [ ] Usar o número separado adquirido para Voice como número de teste, confirmando que ele recebe SMS ou ligação de verificação da Meta.
+- [ ] Manter o piloto independente de contas Meta e do número principal do Duconde até a aprovação explícita para ativação.
+- [x] Escolher a modalidade de número exclusivo para teste e documentar o passo a passo de conexão segura ao piloto.
+- [ ] Concluir a validação do simulador interno antes de qualquer conexão de WhatsApp.
+- [x] Pesquisar a integração gratuita de WhatsApp disponível no GPT Maker e comparar suas limitações com a Cloud API oficial.
+- [x] Identificar qual ponte ou conector de WhatsApp suportado pelo GPT Maker pode ser usado diretamente pela CECRETAR.IA sem assinatura do GPT Maker.
+- [x] Priorizar uma opção gratuita para o piloto e documentar riscos, limitações e condições de uso antes de conectá-la.
+- [x] Salvar checkpoint da versão com canal Meta Cloud API preparado.
+- [x] Modelar a configuração do canal WhatsApp Cloud API por empresa, com status e identificadores isolados.
+- [x] Endurecer o Webhook da Meta para rejeitar requisições sem assinatura válida em todos os ambientes.
+- [x] Adicionar testes de rejeição para Webhook sem assinatura ou sem segredo configurado.
+- [x] Tratar assinaturas Webhook malformadas ou com tamanho inválido sem lançar exceções no endpoint.
+- [x] Adicionar teste Vitest de rejeição segura para assinatura malformada da Meta.
+- [x] Implementar envio de texto e mídia pela Cloud API a partir do agente CECRETAR.IA.
+- [x] Criar painel de conexão do WhatsApp em modo de teste, sem ativar qualquer número até a configuração da Meta.
+- [x] Criar testes Vitest para assinatura de Webhook, normalização de mensagem e composição de envio Cloud API.

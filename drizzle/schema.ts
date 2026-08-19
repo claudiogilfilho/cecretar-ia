@@ -109,6 +109,36 @@ export const appointments = mysqlTable("appointments", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
+export const calendarConnections = mysqlTable("calendarConnections", {
+  id: int("id").autoincrement().primaryKey(),
+  companyId: int("companyId").notNull(),
+  provider: mysqlEnum("provider", ["google"]).notNull(),
+  status: mysqlEnum("status", ["disconnected", "connected", "needs_reauth"]).default("disconnected").notNull(),
+  calendarId: varchar("calendarId", { length: 320 }),
+  calendarName: varchar("calendarName", { length: 180 }),
+  accessTokenEncrypted: text("accessTokenEncrypted"),
+  refreshTokenEncrypted: text("refreshTokenEncrypted"),
+  grantedScopes: text("grantedScopes"),
+  lastSyncedAt: timestamp("lastSyncedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const whatsappChannels = mysqlTable("whatsappChannels", {
+  id: int("id").autoincrement().primaryKey(),
+  companyId: int("companyId").notNull(),
+  agentId: int("agentId").notNull(),
+  provider: mysqlEnum("provider", ["meta_cloud"]).default("meta_cloud").notNull(),
+  status: mysqlEnum("status", ["draft", "ready", "connected", "error"]).default("draft").notNull(),
+  displayPhoneNumber: varchar("displayPhoneNumber", { length: 40 }),
+  phoneNumberId: varchar("phoneNumberId", { length: 80 }).unique(),
+  wabaId: varchar("wabaId", { length: 80 }),
+  lastError: text("lastError"),
+  connectedAt: timestamp("connectedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Agent = typeof agents.$inferSelect;

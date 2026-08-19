@@ -42,7 +42,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-type Section = "visao" | "agente" | "simulador" | "conversas" | "midia" | "agenda" | "metricas";
+type Section = "visao" | "agente" | "simulador" | "conversas" | "midia" | "canal" | "agenda" | "metricas";
 
 const logoUrl = "/manus-storage/cecretar-ia-logo_41522243.png";
 
@@ -52,6 +52,7 @@ const navItems: Array<{ id: Section; label: string; icon: typeof LayoutDashboard
   { id: "simulador", label: "Simulador", icon: MessageCircleMore },
   { id: "conversas", label: "Caixa de entrada", icon: Inbox },
   { id: "midia", label: "Biblioteca de mídia", icon: Paperclip },
+  { id: "canal", label: "Canal WhatsApp", icon: PhoneCall },
   { id: "agenda", label: "Agenda", icon: CalendarDays },
   { id: "metricas", label: "Métricas", icon: BarChart3 },
 ];
@@ -78,6 +79,7 @@ export default function Home() {
   const configQuery = trpc.agent.getConfig.useQuery();
   const conversationsQuery = trpc.conversations.list.useQuery(undefined, { refetchInterval: 10_000 });
   const appointmentsQuery = trpc.appointments.list.useQuery(undefined, { refetchInterval: 20_000 });
+  const whatsappQuery = trpc.whatsapp.getConfig.useQuery();
   const utils = trpc.useUtils();
 
   const refreshAll = () => {
@@ -85,6 +87,7 @@ export default function Home() {
     void utils.agent.getConfig.invalidate();
     void utils.conversations.list.invalidate();
     void utils.appointments.list.invalidate();
+    void utils.whatsapp.getConfig.invalidate();
   };
 
   if (overview.isLoading || configQuery.isLoading) {
@@ -135,12 +138,65 @@ export default function Home() {
           {section === "simulador" && <SimulatorPage config={agentConfig} onRefresh={refreshAll} />}
           {section === "conversas" && <InboxPage conversations={conversationsQuery.data ?? []} config={agentConfig} onRefresh={refreshAll} />}
           {section === "midia" && <MediaPage config={agentConfig} onRefresh={refreshAll} />}
+          {section === "canal" && <WhatsAppChannelPage />}
           {section === "agenda" && <AgendaPage config={agentConfig} appointments={appointmentsQuery.data ?? []} onRefresh={refreshAll} />}
           {section === "metricas" && <MetricsPage metrics={metrics} />}
         </div>
       </main>
     </div>
   );
+}
+
+function WhatsAppChannelPage() {
+  const channelQuery = trpc.whatsapp.getConfig.useQuery();
+  const utils = trpc.useUtils();
+  const [form, setForm] = useState({ displayPhoneNumber: "", phoneNumberId: "", wabaId: "" });
+  const save = trpc.whatsapp.saveDraft.useMutation({
+    onSuccess: () => {
+      toast.success("Canal de teste salvo. Nenhum número foi ativado.");
+      void utils.whatsapp.getConfig.invalidate();
+    },
+  });
+
+  useEffect(() => {
+    const channel = channelQuery.data?.channel;
+    if (channel) setForm({ displayPhoneNumber: channel.displayPhoneNumber ?? "", phoneNumberId: channel.phoneNumberId ?? "", wabaId: channel.wabaId ?? "" });
+  }, [channelQuery.data]);
+
+  if (channelQuery.isLoading) return <div className="grid min-h-80 place-items-center"><Loader2 className="size-6 animate-spin text-primary" /></div>;
+
+  const data = channelQuery.data!;
+  const channel = data.channel;
+  const state = channel?.status ?? "draft";
+  const statusLabel = state === "connected" ? "Conectado" : state === "ready" ? "Pronto para ativar" : state === "error" ? "Revisar configuração" : "Rascunho";
+
+  return <div className="grid gap-6 xl:grid-cols-[1fr_340px] enter-up">
+    <section className="space-y-6">
+      <div className="rounded-[26px] bg-[#113b2b] p-7 text-white">
+        <Badge className="border-0 bg-white/10 text-emerald-100">Cloud API direta da Meta</Badge>
+        <h2 className="mt-3 font-[Manrope] text-3xl font-extrabold tracking-tight">Seu canal WhatsApp, sem intermediários.</h2>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-emerald-50/75">A CECRETAR.IA receberá e responderá mensagens diretamente pela Cloud API. O GPT Maker, gateways pagos e o número principal do Duconde ficam fora deste piloto.</p>
+        <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold"><span className={cn("size-1.5 rounded-full", state === "connected" ? "bg-[#7de3a7]" : "bg-amber-300")} />{statusLabel}</div>
+      </div>
+      <section className="rounded-2xl border border-[#e3ece6] bg-white p-6">
+        <div><p className="text-sm font-bold">Dados do número de teste</p><p className="mt-1 text-sm text-muted-foreground">Preencha somente depois que o aplicativo Meta da CECRETAR.IA estiver criado. Salvar estes dados não ativa nem registra um número.</p></div>
+        <div className="mt-6 grid gap-5 md:grid-cols-2">
+          <Field label="Número exibido"><Input value={form.displayPhoneNumber} placeholder="Ex.: +55 81 99999-9999" onChange={e => setForm(current => ({ ...current, displayPhoneNumber: e.target.value }))} /></Field>
+          <Field label="Phone Number ID da Meta"><Input value={form.phoneNumberId} placeholder="Gerado pela Meta" onChange={e => setForm(current => ({ ...current, phoneNumberId: e.target.value }))} /></Field>
+          <Field label="WABA ID" className="md:col-span-2"><Input value={form.wabaId} placeholder="Conta WhatsApp Business gerada pela Meta" onChange={e => setForm(current => ({ ...current, wabaId: e.target.value }))} /></Field>
+        </div>
+        <div className="mt-6 flex justify-end"><Button onClick={() => save.mutate(form)} disabled={save.isPending}>{save.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}Salvar rascunho do canal</Button></div>
+      </section>
+      <section className="rounded-2xl border border-[#e3ece6] bg-white p-6">
+        <p className="text-sm font-bold">Roteiro de ativação futura</p>
+        <div className="mt-5 grid gap-3 md:grid-cols-3">{[{ n: "01", t: "Criar o aplicativo Meta", d: "Aplicativo exclusivo da CECRETAR.IA com o produto WhatsApp." }, { n: "02", t: "Registrar o número de teste", d: "Usar o número Meta de teste ou o seu número separado." }, { n: "03", t: "Adicionar o Webhook", d: `Apontar a Meta para ${data.webhookPath}.` }].map(item => <div key={item.n} className="rounded-xl bg-[#f5f9f6] p-4"><span className="text-xs font-extrabold text-primary">{item.n}</span><p className="mt-3 text-sm font-bold">{item.t}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{item.d}</p></div>)}</div>
+      </section>
+    </section>
+    <aside className="space-y-5">
+      <section className="rounded-2xl border border-[#e3ece6] bg-white p-5"><p className="text-sm font-bold">Prontidão técnica</p><div className="mt-4 space-y-3">{[{ label: "Webhook preparado", ok: true }, { label: "Adaptador de mensagens", ok: true }, { label: "Token de acesso da Meta", ok: data.hasToken }, { label: "Token de verificação", ok: data.hasVerifyToken }, { label: "Segredo do aplicativo", ok: data.hasAppSecret }].map(item => <div key={item.label} className="flex items-center justify-between gap-2"><span className="text-xs text-muted-foreground">{item.label}</span>{item.ok ? <CheckCircle2 className="size-4 text-primary" /> : <Clock3 className="size-4 text-amber-500" />}</div>)}</div></section>
+      <section className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5"><PhoneCall className="size-5 text-primary" /><p className="mt-3 text-sm font-bold text-emerald-950">O que acontecerá no teste real</p><p className="mt-2 text-xs leading-5 text-emerald-800">Uma mensagem enviada ao número de teste chegará pelo Webhook, entrará na caixa de entrada da CECRETAR.IA e receberá a mesma lógica usada no simulador.</p></section>
+    </aside>
+  </div>;
 }
 
 function OverviewPage({ metrics, conversations, appointments, onNavigate }: { metrics: { conversations: number; qualified: number; appointments: number; humanHandoffs: number }; conversations: any[]; appointments: any[]; onNavigate: (section: Section) => void }) {
@@ -209,7 +265,7 @@ function AgendaPage({ config, appointments, onRefresh }: { config: any; appointm
   const cancel = trpc.appointments.cancel.useMutation({ onSuccess: () => { toast.success("Visita cancelada."); onRefresh(); } });
   const createAppointment = () => { if (!name || !dateTime) { toast.error("Informe o nome e a data da visita."); return; } create.mutate({ agentId: config.agent.id, visitorName: name, visitorPhone: phone || undefined, scheduledFor: new Date(dateTime).getTime() }); };
   const changeDate = (appointment: any) => { const value = window.prompt("Novo horário (AAAA-MM-DDTHH:mm)"); if (!value) return; const timestamp = new Date(value).getTime(); if (Number.isNaN(timestamp)) return toast.error("Data inválida."); reschedule.mutate({ appointmentId: appointment.id, scheduledFor: timestamp }); };
-  return <div className="grid gap-6 xl:grid-cols-[360px_1fr] enter-up"><aside className="space-y-6"><section className="rounded-2xl border border-[#e3ece6] bg-white p-6"><div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-emerald-50 text-primary"><CalendarDays className="size-5" /></span><div><p className="text-sm font-bold">Nova visita</p><p className="text-xs text-muted-foreground">Cadastre um teste de agenda.</p></div></div><div className="mt-6 space-y-4"><Field label="Nome do visitante"><Input value={name} onChange={e => setName(e.target.value)} placeholder="Ex.: Ana Silva" /></Field><Field label="WhatsApp"><Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="(81) 99999-9999" /></Field><Field label="Data e horário"><Input type="datetime-local" value={dateTime} onChange={e => setDateTime(e.target.value)} /></Field><Button className="w-full" onClick={createAppointment} disabled={create.isPending}>{create.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}Criar visita</Button></div></section><section className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5"><div className="flex items-center justify-between"><div className="grid size-9 place-items-center rounded-xl bg-white text-primary"><CalendarDays className="size-4" /></div><Badge className="bg-white text-emerald-700 hover:bg-white">Preparado</Badge></div><p className="mt-4 text-sm font-bold text-emerald-950">Google Calendar via OAuth</p><p className="mt-2 text-xs leading-5 text-emerald-800">O fluxo de criação, remarcação e cancelamento já está modelado. A conexão real será ativada após inserir as credenciais OAuth do Google.</p><Button variant="outline" className="mt-4 w-full border-emerald-200 bg-white text-emerald-800 hover:bg-white" onClick={() => toast.info("A conexão do Google Calendar requer as credenciais OAuth do projeto.")}>Conectar Google Calendar</Button></section></aside><section className="rounded-2xl border border-[#e3ece6] bg-white"><div className="flex items-center justify-between border-b border-[#edf2ee] p-5"><div><p className="text-sm font-bold">Agenda de visitas</p><p className="mt-1 text-xs text-muted-foreground">Crie, remarque ou cancele os compromissos do piloto.</p></div><Badge variant="secondary">{appointments.filter(item => item.status !== "canceled").length} ativas</Badge></div><div className="divide-y divide-[#edf2ee]">{appointments.length ? appointments.map(appointment => <div key={appointment.id} className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center"><div className="grid size-11 place-items-center rounded-xl bg-emerald-50 text-primary"><CalendarDays className="size-5" /></div><div className="flex-1"><p className="text-sm font-semibold">{appointment.visitorName}</p><p className="mt-1 text-xs text-muted-foreground">{formatDate(appointment.scheduledFor)} · {appointment.visitorPhone || "Telefone não informado"}</p></div><div className="flex items-center gap-2"><Badge variant="outline" className={appointment.status === "canceled" ? "border-slate-200 text-slate-500" : "border-emerald-100 text-emerald-700"}>{appointment.status === "scheduled" ? "Agendada" : appointment.status === "rescheduled" ? "Remarcada" : "Cancelada"}</Badge>{appointment.status !== "canceled" && <><Button size="sm" variant="ghost" onClick={() => changeDate(appointment)}>Remarcar</Button><Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => cancel.mutate({ appointmentId: appointment.id })}>Cancelar</Button></>}</div></div>) : <div className="p-16"><EmptyState icon={CalendarDays} text="Nenhuma visita cadastrada. Crie a primeira para testar o ciclo completo." /></div>}</div></section></div>;
+  return <div className="grid gap-6 xl:grid-cols-[360px_1fr] enter-up"><aside className="space-y-6"><section className="rounded-2xl border border-[#e3ece6] bg-white p-6"><div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-emerald-50 text-primary"><CalendarDays className="size-5" /></span><div><p className="text-sm font-bold">Nova visita</p><p className="text-xs text-muted-foreground">Cadastre um teste de agenda.</p></div></div><div className="mt-6 space-y-4"><Field label="Nome do visitante"><Input value={name} onChange={e => setName(e.target.value)} placeholder="Ex.: Ana Silva" /></Field><Field label="WhatsApp"><Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="(81) 99999-9999" /></Field><Field label="Data e horário"><Input type="datetime-local" value={dateTime} onChange={e => setDateTime(e.target.value)} /></Field><Button className="w-full" onClick={createAppointment} disabled={create.isPending}>{create.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}Criar visita</Button></div></section><section className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5"><div className="flex items-center justify-between"><div className="grid size-9 place-items-center rounded-xl bg-white text-primary"><CalendarDays className="size-4" /></div><Badge className="bg-white text-emerald-700 hover:bg-white">Experiência do cliente</Badge></div><p className="mt-4 text-sm font-bold text-emerald-950">Conexão com Google Calendar</p><p className="mt-2 text-xs leading-5 text-emerald-800">Cada empresa conecta a própria conta Google no painel, escolhe o calendário de visitas e autoriza somente o acesso necessário. Nenhum cliente informa chaves técnicas à CECRETAR.IA.</p><Button variant="outline" className="mt-4 w-full border-emerald-200 bg-white text-emerald-800 hover:bg-white" onClick={() => toast.info("No piloto, a jornada de conexão está desenhada. A autorização real será ativada quando o aplicativo OAuth da CECRETAR.IA for registrado no Google Cloud.")}>Ver fluxo de conexão</Button></section></aside><section className="rounded-2xl border border-[#e3ece6] bg-white"><div className="flex items-center justify-between border-b border-[#edf2ee] p-5"><div><p className="text-sm font-bold">Agenda de visitas</p><p className="mt-1 text-xs text-muted-foreground">Crie, remarque ou cancele os compromissos do piloto.</p></div><Badge variant="secondary">{appointments.filter(item => item.status !== "canceled").length} ativas</Badge></div><div className="divide-y divide-[#edf2ee]">{appointments.length ? appointments.map(appointment => <div key={appointment.id} className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center"><div className="grid size-11 place-items-center rounded-xl bg-emerald-50 text-primary"><CalendarDays className="size-5" /></div><div className="flex-1"><p className="text-sm font-semibold">{appointment.visitorName}</p><p className="mt-1 text-xs text-muted-foreground">{formatDate(appointment.scheduledFor)} · {appointment.visitorPhone || "Telefone não informado"}</p></div><div className="flex items-center gap-2"><Badge variant="outline" className={appointment.status === "canceled" ? "border-slate-200 text-slate-500" : "border-emerald-100 text-emerald-700"}>{appointment.status === "scheduled" ? "Agendada" : appointment.status === "rescheduled" ? "Remarcada" : "Cancelada"}</Badge>{appointment.status !== "canceled" && <><Button size="sm" variant="ghost" onClick={() => changeDate(appointment)}>Remarcar</Button><Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => cancel.mutate({ appointmentId: appointment.id })}>Cancelar</Button></>}</div></div>) : <div className="p-16"><EmptyState icon={CalendarDays} text="Nenhuma visita cadastrada. Crie a primeira para testar o ciclo completo." /></div>}</div></section></div>;
 }
 
 function MetricsPage({ metrics }: { metrics: { conversations: number; qualified: number; appointments: number; humanHandoffs: number } }) {

@@ -11,6 +11,7 @@ import {
   messages,
   qualificationFields,
   users,
+  whatsappChannels,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { calculatePilotMetrics } from "./metrics";
@@ -21,7 +22,13 @@ async function ensurePilotData() {
   const db = await getDb();
   if (!db) return null;
   const existingAgent = (await db.select().from(agents).limit(1))[0];
-  if (existingAgent) return existingAgent.id;
+  if (existingAgent) {
+    const existingChannel = (await db.select().from(whatsappChannels).where(eq(whatsappChannels.agentId, existingAgent.id)).limit(1))[0];
+    if (!existingChannel) {
+      await db.insert(whatsappChannels).values({ companyId: existingAgent.companyId, agentId: existingAgent.id, provider: "meta_cloud", status: "draft" });
+    }
+    return existingAgent.id;
+  }
 
   const companyResult = await db.insert(companies).values({
     name: "Duconde Empresarial Boutique",
@@ -50,6 +57,7 @@ async function ensurePilotData() {
     { agentId, key: "orcamento", label: "Orçamento", prompt: "Você possui alguma faixa de investimento mensal em mente?", required: false, position: 3, isActive: true },
     { agentId, key: "urgencia", label: "Urgência", prompt: "Para quando você pretende começar a utilizar a sala?", required: false, position: 4, isActive: true },
   ]);
+  await db.insert(whatsappChannels).values({ companyId, agentId, provider: "meta_cloud", status: "draft" });
   return agentId;
 }
 
@@ -103,7 +111,29 @@ export async function getPilotAgentConfig() {
   const company = (await db.select().from(companies).where(eq(companies.id, agent.companyId)).limit(1))[0];
   const fields = await db.select().from(qualificationFields).where(eq(qualificationFields.agentId, agent.id));
   const assets = await db.select().from(mediaAssets).where(eq(mediaAssets.agentId, agent.id)).orderBy(desc(mediaAssets.createdAt));
-  return { agent, company, qualificationFields: fields.sort((a, b) => a.position - b.position), mediaAssets: assets };
+  const whatsappChannel = (await db.select().from(whatsappChannels).where(eq(whatsappChannels.agentId, agent.id)).limit(1))[0] ?? null;
+  return { agent, company, qualificationFields: fields.sort((a, b) => a.position - b.position), mediaAssets: assets, whatsappChannel };
+}
+
+export async function getWhatsAppChannel() {
+  const config = await getPilotAgentConfig();
+  return config?.whatsappChannel ?? null;
+}
+
+export async function updateWhatsAppChannel(values: Record<string, unknown>) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  await ensurePilotData();
+  const channel = (await db.select().from(whatsappChannels).limit(1))[0];
+  if (!channel) throw new Error("Canal WhatsApp não encontrado");
+  await db.update(whatsappChannels).set(values as any).where(eq(whatsappChannels.id, channel.id));
+  return getWhatsAppChannel();
+}
+
+export async function getWhatsAppChannelByPhoneNumberId(phoneNumberId: string) {
+  const db = await getDb();
+  if (!db) return null;
+  return (await db.select().from(whatsappChannels).where(eq(whatsappChannels.phoneNumberId, phoneNumberId)).limit(1))[0] ?? null;
 }
 
 export async function updateAgentConfig(agentId: number, values: Record<string, unknown>) {
@@ -138,6 +168,12 @@ export async function createMediaAsset(values: typeof mediaAssets.$inferInsert) 
   return Number((result as any)[0]?.insertId ?? 0);
 }
 
+export async function getMediaAssetForIntent(agentId: number, intent: string) {
+  const db = await getDb();
+  if (!db) return null;
+  return (await db.select().from(mediaAssets).where(and(eq(mediaAssets.agentId, agentId), eq(mediaAssets.intent, intent))).orderBy(desc(mediaAssets.createdAt)).limit(1))[0] ?? null;
+}
+
 export async function listConversations() {
   const db = await getDb();
   if (!db) return [];
@@ -150,11 +186,17 @@ export async function getConversationMessages(conversationId: number) {
   return db.select().from(messages).where(eq(messages.conversationId, conversationId)).orderBy(messages.createdAt);
 }
 
-export async function createConversation(agentId: number, contactName: string, channel: "simulator" | "whatsapp" | "instagram" = "simulator") {
+export async function createConversation(agentId: number, contactName: string, channel: "simulator" | "whatsapp" | "instagram" = "simulator", contactPhone?: string) {
   const db = await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
-  const result = await db.insert(conversations).values({ agentId, contactName, channel, qualification: {} });
+  const result = await db.insert(conversations).values({ agentId, contactName, channel, contactPhone: contactPhone ?? null, qualification: {} });
   return Number((result as any)[0]?.insertId ?? 0);
+}
+
+export async function findOpenWhatsAppConversation(agentId: number, contactPhone: string) {
+  const db = await getDb();
+  if (!db) return null;
+  return (await db.select().from(conversations).where(and(eq(conversations.agentId, agentId), eq(conversations.channel, "whatsapp"), eq(conversations.contactPhone, contactPhone))).orderBy(desc(conversations.updatedAt)).limit(1))[0] ?? null;
 }
 
 export async function getConversation(conversationId: number) {
