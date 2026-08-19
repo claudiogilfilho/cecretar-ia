@@ -19,7 +19,8 @@
 - [ ] Configurar credenciais OAuth gerenciadas pela CECRETAR.IA para que empresas autorizem seu próprio Google Calendar dentro do painel.
 - [ ] Implementar a conexão de calendário por empresa, armazenando autorização e calendário selecionado de forma isolada por conta.
 - [x] Manter o produto em modo de piloto interno, sem fluxo de venda, cobrança ou autoassinatura nesta fase.
-- [ ] Definir no piloto os cenários de aprovação para preço, localização, mídia, qualificação, transferência humana e agendamento interno.
+- [x] Registrar no simulador os seis cenários de validação do piloto: preço, localização, mídia, qualificação, transferência humana e agendamento interno.
+- [x] Adicionar mensagem de teste e critério de aceite explícitos para cada cenário do piloto.
 - [ ] Executar conversas de teste no simulador e registrar os resultados para revisão do comportamento do agente.
 - [ ] Ajustar as respostas e regras do agente conforme os achados do teste do Duconde.
 - [x] Comparar a Cloud API oficial da Meta e provedores oficiais para definir a ponte de WhatsApp do Duconde.
