@@ -6,6 +6,7 @@ import {
   mysqlTable,
   text,
   timestamp,
+  uniqueIndex,
   varchar,
 } from "drizzle-orm/mysql-core";
 
@@ -39,7 +40,12 @@ export const agents = mysqlTable("agents", {
   services: text("services").notNull(),
   pricing: text("pricing").notNull(),
   businessHours: text("businessHours").notNull(),
-  transferKeyword: varchar("transferKeyword", { length: 80 }).default("gente").notNull(),
+  transferKeyword: varchar("transferKeyword", { length: 80 }).default("#gente").notNull(),
+  ownerTakeoverCommand: varchar("ownerTakeoverCommand", { length: 80 }).default("#assumir").notNull(),
+  templateKey: varchar("templateKey", { length: 80 }).default("real_estate_rental").notNull(),
+  websiteUrl: varchar("websiteUrl", { length: 512 }),
+  instagramHandle: varchar("instagramHandle", { length: 120 }),
+  onboardingSources: json("onboardingSources").$type<Record<string, string>>(),
   provider: mysqlEnum("provider", ["embedded", "openai"]).default("embedded").notNull(),
   modelPreference: varchar("modelPreference", { length: 120 }).default("automático").notNull(),
   isActive: boolean("isActive").default(true).notNull(),
@@ -109,6 +115,20 @@ export const appointments = mysqlTable("appointments", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
+export const agentAvailability = mysqlTable("agentAvailability", {
+  id: int("id").autoincrement().primaryKey(),
+  agentId: int("agentId").notNull(),
+  weekday: int("weekday").notNull(),
+  startTime: varchar("startTime", { length: 5 }).notNull(),
+  endTime: varchar("endTime", { length: 5 }).notNull(),
+  slotMinutes: int("slotMinutes").default(30).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => ({
+  agentWeekdayUnique: uniqueIndex("agentAvailability_agent_weekday_unique").on(table.agentId, table.weekday),
+}));
+
 export const calendarConnections = mysqlTable("calendarConnections", {
   id: int("id").autoincrement().primaryKey(),
   companyId: int("companyId").notNull(),
@@ -133,6 +153,20 @@ export const whatsappChannels = mysqlTable("whatsappChannels", {
   displayPhoneNumber: varchar("displayPhoneNumber", { length: 40 }),
   phoneNumberId: varchar("phoneNumberId", { length: 80 }).unique(),
   wabaId: varchar("wabaId", { length: 80 }),
+  lastError: text("lastError"),
+  connectedAt: timestamp("connectedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const instagramChannels = mysqlTable("instagramChannels", {
+  id: int("id").autoincrement().primaryKey(),
+  companyId: int("companyId").notNull(),
+  agentId: int("agentId").notNull(),
+  status: mysqlEnum("status", ["draft", "ready", "connected", "error"]).default("draft").notNull(),
+  instagramBusinessAccountId: varchar("instagramBusinessAccountId", { length: 80 }).unique(),
+  pageId: varchar("pageId", { length: 80 }),
+  profileHandle: varchar("profileHandle", { length: 120 }),
   lastError: text("lastError"),
   connectedAt: timestamp("connectedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

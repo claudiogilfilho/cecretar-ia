@@ -51,3 +51,18 @@
 - [x] Registrar os resultados da rodada autônoma do piloto, incluindo cenários executados, falhas encontradas e correções aplicadas.
 - [x] Corrigir erros identificados na rodada autônoma de validação antes da revisão do usuário.
 - [x] Executar testes de regressão, build de produção e revisão visual final após as correções.
+- [x] Criar catálogo multiagente com modelos para advocacia, comercialização de energia solar, psicologia, captação de cedentes de precatórios e locação de imóveis.
+- [x] Permitir criar e configurar vários robôs por empresa, cada um com especialidade, personalidade, regras e base de conhecimento próprias.
+- [x] Criar onboarding editável que receba URL de site e perfil público do Instagram para sugerir uma configuração inicial do agente.
+- [x] Adicionar teste unitário para seleção de mídia por agentId e intenção.
+- [x] Adicionar teste ponta a ponta do adaptador WhatsApp: payload recebido, normalização, resposta com mediaIntent, seleção de mídia e envio pelo módulo real.
+- [ ] Executar e registrar o teste ponta a ponta de mídia quando um canal de teste estiver conectado.
+- [x] Implementar autorização explícita para #assumir por proprietário, sem interpretar o comando vindo do interlocutor.
+- [x] Manter o comando #gente para o interlocutor interromper o robô e solicitar uma pessoa, com aviso permanente do agente sobre essa possibilidade.
+- [x] Completar a preparação do Instagram Direct por agente com contrato, adaptador e testes mínimos, mantendo a conexão inativa até a ativação individual da empresa.
+- [x] Permitir configurar horários disponíveis por agente com dias, faixas e intervalos independentes.
+- [ ] Conectar o Google Calendar para combinar disponibilidade, criar, remarcar e cancelar agendamentos após a configuração OAuth da plataforma.
+- [x] Criar testes e revisão visual para os fluxos multiagente, comandos de intervenção e sugestões de configuração.
+- [x] Implementar um campo real de comando do proprietário na caixa de entrada para digitar #assumir dentro da conversa, sem depender de janela modal.
+- [x] Substituir o componente pesado de chat do simulador por uma interface leve para eliminar a falha de memória do build de produção.
+- [x] Impedir duplicidade de horários por especialista e dia da semana na disponibilidade configurável.

@@ -8,6 +8,8 @@ import {
   createMediaAsset,
   getConversationMessages,
   getDashboardOverview,
+  getAgentConfig,
+  getInstagramChannel,
   getPilotAgentConfig,
   getPilotConversationContext,
   listAppointments,
@@ -17,15 +19,24 @@ import {
   updateConversation,
   updateQualificationFields,
   getWhatsAppChannel,
+  createAgentFromTemplate,
+  listAgentTemplates,
+  listConfiguredAgents,
   updateWhatsAppChannel,
+  updateInstagramChannel,
+  listAgentAvailability,
+  replaceAgentAvailability,
 } from "./db";
 import { WHATSAPP_WEBHOOK_PATH } from "./whatsappCloud";
 import { prepareCancellation, prepareHumanTakeover, prepareManualAppointment, prepareReschedule } from "./operationalFlows";
 import { buildInboxHistory, buildInboxList } from "./inboxFlows";
+import { isOwnerTakeoverCommand } from "./conversationControl";
+import { createBusinessConfigurationSuggestion } from "./configurationSuggestion";
+import { validateAvailabilitySlots } from "./availabilityFlows";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
+import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 
 const agentConfigSchema = z.object({
   agentId: z.number(),
@@ -36,6 +47,10 @@ const agentConfigSchema = z.object({
   pricing: z.string().min(5),
   businessHours: z.string().min(5),
   transferKeyword: z.string().min(2).max(80),
+  ownerTakeoverCommand: z.string().min(2).max(80),
+  websiteUrl: z.string().max(512).optional(),
+  instagramHandle: z.string().max(120).optional(),
+  templateKey: z.string().max(80).optional(),
   provider: z.enum(["embedded", "openai"]),
   modelPreference: z.string().min(2).max(120),
 });
@@ -54,7 +69,29 @@ export const appRouter = router({
     getOverview: publicProcedure.query(() => getDashboardOverview()),
   }),
   agent: router({
-    getConfig: publicProcedure.query(() => getPilotAgentConfig()),
+    getConfig: publicProcedure.input(z.object({ agentId: z.number().optional() }).optional()).query(({ input }) => getAgentConfig(input?.agentId)),
+    list: publicProcedure.query(() => listConfiguredAgents()),
+    templates: publicProcedure.query(() => listAgentTemplates()),
+    createFromTemplate: publicProcedure.input(z.object({ templateKey: z.string().min(3).max(80) })).mutation(async ({ input }) => ({ id: await createAgentFromTemplate(input.templateKey) })),
+    suggestConfiguration: publicProcedure.input(z.object({ agentId: z.number(), websiteUrl: z.string().max(512).optional(), instagramHandle: z.string().max(160).optional() })).mutation(async ({ input }) => {
+      const config = await getAgentConfig(input.agentId);
+      if (!config) throw new Error("Especialista não encontrado");
+      return createBusinessConfigurationSuggestion({
+        current: {
+          name: config.agent.name,
+          persona: config.agent.persona,
+          companyInfo: config.agent.companyInfo,
+          services: config.agent.services,
+          pricing: config.agent.pricing,
+          businessHours: config.agent.businessHours,
+          websiteUrl: config.agent.websiteUrl ?? undefined,
+          instagramHandle: config.agent.instagramHandle ?? undefined,
+          note: "",
+        },
+        websiteUrl: input.websiteUrl,
+        instagramHandle: input.instagramHandle,
+      });
+    }),
     updateConfig: publicProcedure.input(agentConfigSchema).mutation(({ input }) => {
       const { agentId, ...values } = input;
       return updateAgentConfig(agentId, values);
@@ -102,10 +139,11 @@ export const appRouter = router({
     messages: publicProcedure.input(z.object({ conversationId: z.number() })).query(async ({ input }) => buildInboxHistory(await getConversationMessages(input.conversationId))),
     send: publicProcedure.input(z.object({
       conversationId: z.number().optional(),
+      agentId: z.number().optional(),
       text: z.string().min(1).max(3000),
       contactName: z.string().min(2).max(160).default("Contato de teste"),
     })).mutation(async ({ input }) => {
-      const config = await getPilotAgentConfig();
+      const config = await getAgentConfig(input.agentId);
       if (!config) throw new Error("Configure o agente piloto antes de iniciar o teste");
       const conversationId = input.conversationId ?? await createConversation(config.agent.id, input.contactName);
       await appendConversationMessage({ conversationId, role: "lead", body: input.text, metadata: {} });
@@ -130,10 +168,19 @@ export const appRouter = router({
       });
       return { conversationId, reply: reply.reply, mediaIntent: reply.mediaIntent, transferToHuman: reply.transferToHuman };
     }),
-    takeOver: publicProcedure.input(z.object({ conversationId: z.number() })).mutation(async ({ input }) => {
+    takeOver: protectedProcedure.input(z.object({ conversationId: z.number() })).mutation(async ({ input, ctx }) => {
+      if (ctx.user.role !== "admin") throw new Error("Somente o proprietário pode assumir esta conversa");
       const takeover = prepareHumanTakeover();
       await updateConversation(input.conversationId, takeover.conversationUpdate);
-      await appendConversationMessage({ conversationId: input.conversationId, role: "system", body: takeover.systemMessage, metadata: {} });
+      await appendConversationMessage({ conversationId: input.conversationId, role: "system", body: takeover.systemMessage, metadata: { ownerId: ctx.user.id } });
+      return { success: true };
+    }),
+    ownerCommand: protectedProcedure.input(z.object({ conversationId: z.number(), text: z.string().max(80) })).mutation(async ({ input, ctx }) => {
+      if (ctx.user.role !== "admin") throw new Error("Somente o proprietário pode assumir esta conversa");
+      if (!isOwnerTakeoverCommand(input.text)) throw new Error("Comando de proprietário inválido");
+      const takeover = prepareHumanTakeover();
+      await updateConversation(input.conversationId, takeover.conversationUpdate);
+      await appendConversationMessage({ conversationId: input.conversationId, role: "system", body: takeover.systemMessage, metadata: { command: "#assumir", ownerId: ctx.user.id } });
       return { success: true };
     }),
   }),
@@ -159,21 +206,37 @@ export const appRouter = router({
     }),
   }),
   whatsapp: router({
-    getConfig: publicProcedure.query(async () => ({
-      channel: await getWhatsAppChannel(),
+    getConfig: publicProcedure.input(z.object({ agentId: z.number().optional() }).optional()).query(async ({ input }) => ({
+      channel: await getWhatsAppChannel(input?.agentId),
       webhookPath: WHATSAPP_WEBHOOK_PATH,
       hasToken: Boolean(process.env.META_WHATSAPP_ACCESS_TOKEN),
       hasVerifyToken: Boolean(process.env.META_WEBHOOK_VERIFY_TOKEN),
       hasAppSecret: Boolean(process.env.META_APP_SECRET),
     })),
     saveDraft: publicProcedure.input(z.object({
+      agentId: z.number().optional(),
       displayPhoneNumber: z.string().max(40).optional(),
       phoneNumberId: z.string().max(80).optional(),
       wabaId: z.string().max(80).optional(),
     })).mutation(async ({ input }) => {
       const status = input.phoneNumberId ? "ready" : "draft";
-      return updateWhatsAppChannel({ ...input, status, lastError: null });
+      const { agentId, ...values } = input;
+      return updateWhatsAppChannel({ ...values, status, lastError: null }, agentId);
     }),
+  }),
+  instagram: router({
+    getConfig: publicProcedure.input(z.object({ agentId: z.number().optional() }).optional()).query(({ input }) => getInstagramChannel(input?.agentId)),
+    saveDraft: publicProcedure.input(z.object({ agentId: z.number().optional(), profileHandle: z.string().max(120).optional() })).mutation(({ input }) => {
+      const { agentId, ...values } = input;
+      return updateInstagramChannel({ ...values, status: values.profileHandle ? "ready" : "draft", lastError: null }, agentId);
+    }),
+  }),
+  availability: router({
+    list: publicProcedure.input(z.object({ agentId: z.number() })).query(({ input }) => listAgentAvailability(input.agentId)),
+    save: publicProcedure.input(z.object({
+      agentId: z.number(),
+      slots: z.array(z.object({ weekday: z.number().int().min(0).max(6), startTime: z.string().max(5), endTime: z.string().max(5), slotMinutes: z.number().int(), isActive: z.boolean() })).length(7),
+    })).mutation(({ input }) => replaceAgentAvailability(input.agentId, validateAvailabilitySlots(input.slots))),
   }),
 });
 

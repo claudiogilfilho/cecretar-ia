@@ -36,6 +36,34 @@
       "when": 1787174165398,
       "tag": "0004_optimal_menace",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1787177815086,
+      "tag": "0005_bent_wind_dancer",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1787177878429,
+      "tag": "0006_peaceful_morph",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1787179144730,
+      "tag": "0007_cute_fixer",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1787179530971,
+      "tag": "0008_workable_sage",
+      "breakpoints": true
     }
   ]
 }

@@ -27,6 +27,8 @@ vi.mock("./whatsappCloud", () => ({ WHATSAPP_WEBHOOK_PATH: "/api/webhooks/meta/w
 import { appRouter } from "./routers";
 
 const context = { user: null, req: { protocol: "https", headers: {} }, res: {} } as any;
+const authenticatedContext = { user: { id: 9, openId: "owner", role: "admin" }, req: { protocol: "https", headers: {} }, res: {} } as any;
+const memberContext = { user: { id: 10, openId: "member", role: "user" }, req: { protocol: "https", headers: {} }, res: {} } as any;
 
 describe("conversations router integration", () => {
   beforeEach(() => {
@@ -36,7 +38,7 @@ describe("conversations router integration", () => {
   });
 
   it("assume uma conversa, muda o status para humano e anexa a mensagem de sistema", async () => {
-    const caller = appRouter.createCaller(context);
+    const caller = appRouter.createCaller(authenticatedContext);
 
     await expect(caller.conversations.takeOver({ conversationId: 42 })).resolves.toEqual({ success: true });
     expect(db.updateConversation).toHaveBeenCalledWith(42, { status: "human" });
@@ -44,8 +46,18 @@ describe("conversations router integration", () => {
       conversationId: 42,
       role: "system",
       body: "Atendimento transferido para uma pessoa da equipe.",
-      metadata: {},
+      metadata: { ownerId: 9 },
     });
+  });
+
+  it("rejeita a assunção de conversa por visitante não autenticado", async () => {
+    const caller = appRouter.createCaller(context);
+    await expect(caller.conversations.takeOver({ conversationId: 42 })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
+  it("rejeita a assunção por usuário sem permissão de proprietário", async () => {
+    const caller = appRouter.createCaller(memberContext);
+    await expect(caller.conversations.ownerCommand({ conversationId: 42, text: "#assumir" })).rejects.toThrow("Somente o proprietário");
   });
 
   it("reflete a ordenação da inbox e o histórico cronológico pelos procedimentos reais", async () => {

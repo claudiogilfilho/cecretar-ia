@@ -1,6 +1,7 @@
 import { invokeLLM, listLLMModels } from "./_core/llm";
 import { Agent, ConversationMessage } from "../drizzle/schema";
 import { extractQualification, isQualified, resolvePilotRule } from "./agentLogic";
+import { appendHumanAvailabilityNotice } from "./conversationControl";
 
 type ReplyInput = {
   agent: Agent;
@@ -17,7 +18,7 @@ export async function generateAgentReply(input: ReplyInput) {
 
   if (rule) {
     return {
-      reply: rule.reply,
+      reply: appendHumanAvailabilityNotice(rule.reply, rule.transferToHuman),
       transferToHuman: rule.transferToHuman,
       mediaIntent: rule.mediaIntent,
       qualification,
@@ -28,7 +29,7 @@ export async function generateAgentReply(input: ReplyInput) {
 
   if (input.agent.provider === "openai") {
     return {
-      reply: "O provedor OpenAI está preparado na arquitetura, mas ainda precisa ser conectado com as credenciais da empresa. Enquanto isso, este agente continua no modo de teste CECRETAR.IA.",
+      reply: appendHumanAvailabilityNotice("O provedor OpenAI está preparado na arquitetura, mas ainda precisa ser conectado com as credenciais da empresa. Enquanto isso, este agente continua no modo de teste CECRETAR.IA.", false),
       transferToHuman: false,
       mediaIntent: null,
       qualification,
@@ -57,7 +58,7 @@ export async function generateAgentReply(input: ReplyInput) {
     const reply = typeof responseContent === "string" ? responseContent.trim() : "";
     if (!reply) throw new Error("Resposta vazia do provedor embutido");
     return {
-      reply,
+      reply: appendHumanAvailabilityNotice(reply, false),
       transferToHuman: false,
       mediaIntent: null,
       qualification,
@@ -66,7 +67,7 @@ export async function generateAgentReply(input: ReplyInput) {
     };
   } catch {
     return {
-      reply: "Posso te ajudar com valores, estrutura, fotos, localização ou agendamento de visita. O que você gostaria de saber sobre as salas?",
+      reply: appendHumanAvailabilityNotice("Posso te ajudar com valores, estrutura, fotos, localização ou agendamento de visita. O que você gostaria de saber sobre as salas?", false),
       transferToHuman: false,
       mediaIntent: null,
       qualification,

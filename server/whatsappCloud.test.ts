@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildTextPayload, isWebhookSignatureValid, normalizeWhatsAppPayload } from "./whatsappCloud";
+import { buildMediaPayload, buildTextPayload, isWebhookSignatureValid, normalizeWhatsAppPayload } from "./whatsappCloud";
 
 describe("WhatsApp Cloud adapter", () => {
   it("normaliza uma mensagem de texto recebida da Meta", () => {
@@ -9,6 +9,10 @@ describe("WhatsApp Cloud adapter", () => {
 
   it("compõe uma resposta de texto no formato da Cloud API", () => {
     expect(buildTextPayload("5581999999999", "Olá!")).toMatchObject({ messaging_product: "whatsapp", to: "5581999999999", type: "text", text: { body: "Olá!" } });
+  });
+
+  it("compõe uma mídia vinculada à intenção no formato da Cloud API", () => {
+    expect(buildMediaPayload("5581999999999", { kind: "video", url: "https://storage.example/video.mp4" })).toEqual({ messaging_product: "whatsapp", recipient_type: "individual", to: "5581999999999", type: "video", video: { link: "https://storage.example/video.mp4" } });
   });
 
   it("rejeita assinatura ausente quando há segredo configurado", () => {

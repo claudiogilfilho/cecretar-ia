@@ -1,0 +1,1 @@
+ALTER TABLE `agentAvailability` ADD CONSTRAINT `agentAvailability_agent_weekday_unique` UNIQUE(`agentId`,`weekday`);
