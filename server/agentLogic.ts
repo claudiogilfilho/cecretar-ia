@@ -51,7 +51,7 @@ export function resolvePilotRule(input: string, config: AgentRuleConfig) {
       intent: "fotos_salas",
       transferToHuman: false,
       mediaIntent: "fotos_salas",
-      reply: "Separei as imagens mais adequadas das salas para você conhecer a estrutura.",
+      reply: "Estas são algumas opções de salas do Duconde para você conhecer a estrutura.",
     };
   }
 

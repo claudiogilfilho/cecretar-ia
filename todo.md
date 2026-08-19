@@ -45,3 +45,9 @@
 - [x] Implementar envio de texto e mídia pela Cloud API a partir do agente CECRETAR.IA.
 - [x] Criar painel de conexão do WhatsApp em modo de teste, sem ativar qualquer número até a configuração da Meta.
 - [x] Criar testes Vitest para assinatura de Webhook, normalização de mensagem e composição de envio Cloud API.
+- [x] Adicionar testes automatizados para transferência humana e criação, remarcação e cancelamento de agendamentos.
+- [x] Adicionar testes automatizados dos helpers de listagem e histórico da caixa de entrada.
+- [x] Adicionar teste integrado de assunção humana e de reflexo de status e mensagem de sistema nas rotas reais da caixa de entrada.
+- [x] Registrar os resultados da rodada autônoma do piloto, incluindo cenários executados, falhas encontradas e correções aplicadas.
+- [x] Corrigir erros identificados na rodada autônoma de validação antes da revisão do usuário.
+- [x] Executar testes de regressão, build de produção e revisão visual final após as correções.

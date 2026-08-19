@@ -20,6 +20,8 @@ import {
   updateWhatsAppChannel,
 } from "./db";
 import { WHATSAPP_WEBHOOK_PATH } from "./whatsappCloud";
+import { prepareCancellation, prepareHumanTakeover, prepareManualAppointment, prepareReschedule } from "./operationalFlows";
+import { buildInboxHistory, buildInboxList } from "./inboxFlows";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -96,8 +98,8 @@ export const appRouter = router({
     }),
   }),
   conversations: router({
-    list: publicProcedure.query(() => listConversations()),
-    messages: publicProcedure.input(z.object({ conversationId: z.number() })).query(({ input }) => getConversationMessages(input.conversationId)),
+    list: publicProcedure.query(async () => buildInboxList(await listConversations())),
+    messages: publicProcedure.input(z.object({ conversationId: z.number() })).query(async ({ input }) => buildInboxHistory(await getConversationMessages(input.conversationId))),
     send: publicProcedure.input(z.object({
       conversationId: z.number().optional(),
       text: z.string().min(1).max(3000),
@@ -129,8 +131,9 @@ export const appRouter = router({
       return { conversationId, reply: reply.reply, mediaIntent: reply.mediaIntent, transferToHuman: reply.transferToHuman };
     }),
     takeOver: publicProcedure.input(z.object({ conversationId: z.number() })).mutation(async ({ input }) => {
-      await updateConversation(input.conversationId, { status: "human" });
-      await appendConversationMessage({ conversationId: input.conversationId, role: "system", body: "Atendimento transferido para uma pessoa da equipe.", metadata: {} });
+      const takeover = prepareHumanTakeover();
+      await updateConversation(input.conversationId, takeover.conversationUpdate);
+      await appendConversationMessage({ conversationId: input.conversationId, role: "system", body: takeover.systemMessage, metadata: {} });
       return { success: true };
     }),
   }),
@@ -143,23 +146,15 @@ export const appRouter = router({
       scheduledFor: z.number(),
       notes: z.string().max(500).optional(),
     })).mutation(async ({ input }) => {
-      const id = await createAppointment({
-        agentId: input.agentId,
-        visitorName: input.visitorName,
-        visitorPhone: input.visitorPhone ?? null,
-        scheduledFor: new Date(input.scheduledFor),
-        notes: input.notes ?? null,
-        calendarProvider: "manual",
-        status: "scheduled",
-      });
+      const id = await createAppointment(prepareManualAppointment(input));
       return { id };
     }),
     reschedule: publicProcedure.input(z.object({ appointmentId: z.number(), scheduledFor: z.number() })).mutation(async ({ input }) => {
-      await updateAppointment(input.appointmentId, { scheduledFor: new Date(input.scheduledFor), status: "rescheduled" });
+      await updateAppointment(input.appointmentId, prepareReschedule(input.scheduledFor));
       return { success: true };
     }),
     cancel: publicProcedure.input(z.object({ appointmentId: z.number() })).mutation(async ({ input }) => {
-      await updateAppointment(input.appointmentId, { status: "canceled" });
+      await updateAppointment(input.appointmentId, prepareCancellation());
       return { success: true };
     }),
   }),

@@ -74,7 +74,10 @@ function StatusPill({ status }: { status: "bot" | "human" | "closed" }) {
 }
 
 export default function Home() {
-  const [section, setSection] = useState<Section>("visao");
+  const [section, setSection] = useState<Section>(() => {
+    const requestedSection = new URLSearchParams(window.location.search).get("section");
+    return navItems.some(item => item.id === requestedSection) ? requestedSection as Section : "visao";
+  });
   const overview = trpc.dashboard.getOverview.useQuery(undefined, { refetchInterval: 20_000 });
   const configQuery = trpc.agent.getConfig.useQuery();
   const conversationsQuery = trpc.conversations.list.useQuery(undefined, { refetchInterval: 10_000 });
