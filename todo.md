@@ -66,3 +66,6 @@
 - [x] Implementar um campo real de comando do proprietário na caixa de entrada para digitar #assumir dentro da conversa, sem depender de janela modal.
 - [x] Substituir o componente pesado de chat do simulador por uma interface leve para eliminar a falha de memória do build de produção.
 - [x] Impedir duplicidade de horários por especialista e dia da semana na disponibilidade configurável.
+- [ ] Confirmar a conta GitHub de destino e a visibilidade do repositório cecretar-ia.
+- [ ] Criar o repositório GitHub cecretar-ia e enviar a versão atual do código.
+- [ ] Confirmar o link do repositório e registrar a exportação concluída.
