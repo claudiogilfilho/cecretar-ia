@@ -69,3 +69,9 @@
 - [x] Confirmar a conta GitHub de destino e a visibilidade do repositório cecretar-ia.
 - [x] Criar o repositório GitHub cecretar-ia e enviar a versão atual do código.
 - [x] Confirmar o link do repositório e registrar a exportação concluída.
+- [x] Executar matriz completa de depuração dos fluxos multiagente, simulador, mídia, caixa de entrada, agenda e canais preparados.
+- [x] Reproduzir e corrigir os defeitos identificados na rodada de depuração.
+- [x] Validar regressão, build de produção e interface após cada correção aplicada.
+- [x] Salvar um novo checkpoint da versão estabilizada após a depuração.
+- [ ] Fazer commit e push ao GitHub com as correções finais da depuração, incluindo a correção de chaves dos horários.
+- [ ] Confirmar o hash da versão estabilizada enviada ao repositório cecretar-ia.
