@@ -1,13 +1,15 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
-import { Bot, Loader2, PauseCircle, PlayCircle, UsersRound } from "lucide-react";
+import { Bot, Loader2, PauseCircle, PlayCircle, UserRoundCheck, UsersRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export function ConversationControlPage({ config, rows, onRefresh }: { config: any; rows: any[]; onRefresh: () => void }) {
   const [selectedId, setSelectedId] = useState<number>();
+  const [ownerCommandText, setOwnerCommandText] = useState(config.agent.ownerTakeoverCommand || "#assumir");
   const agentRows = rows.filter(row => row.agentId === config.agent.id);
 
   useEffect(() => {
@@ -25,6 +27,14 @@ export function ConversationControlPage({ config, rows, onRefresh }: { config: a
       onRefresh();
       void messages.refetch();
     },
+  });
+  const ownerCommand = trpc.conversations.ownerCommand.useMutation({
+    onSuccess: () => {
+      toast.success("Atendimento assumido pelo proprietário.");
+      onRefresh();
+      void messages.refetch();
+    },
+    onError: error => toast.error(error.message),
   });
 
   return (
@@ -56,6 +66,14 @@ export function ConversationControlPage({ config, rows, onRefresh }: { config: a
               {automation.isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : selected.automationPaused ? <PlayCircle className="mr-2 size-4" /> : <PauseCircle className="mr-2 size-4" />}
               {selected.automationPaused ? "Retomar robô" : "Pausar robô"}
             </Button>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 border-b bg-slate-50 px-5 py-3">
+            <UserRoundCheck className="size-4 text-primary" />
+            <Input value={ownerCommandText} onChange={event => setOwnerCommandText(event.target.value)} className="h-9 w-32 bg-white text-sm" aria-label="Comando do proprietário" />
+            <Button size="sm" variant="outline" onClick={() => selected && ownerCommand.mutate({ conversationId: selected.id, text: ownerCommandText })} disabled={ownerCommand.isPending || !ownerCommandText.trim()}>
+              {ownerCommand.isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}Assumir conversa
+            </Button>
+            <p className="text-xs text-muted-foreground">Somente o proprietário autorizado pode usar este comando.</p>
           </div>
           <div className="flex-1 space-y-4 overflow-y-auto bg-[#fbfdfc] p-5">
             {messages.data?.map((message: any) => (

@@ -23,6 +23,7 @@
 - [x] Adicionar mensagem de teste e critério de aceite explícitos para cada cenário do piloto.
 - [ ] Executar conversas de teste no simulador e registrar os resultados para revisão do comportamento do agente.
 - [ ] Ajustar as respostas e regras do agente conforme os achados do teste do Duconde.
+- [ ] Carregar fotos, áudios e documentos reais do Duconde na biblioteca do especialista antes do teste de mídia por canal.
 - [x] Comparar a Cloud API oficial da Meta e provedores oficiais para definir a ponte de WhatsApp do Duconde.
 - [ ] Definir o procedimento seguro de migração do número atualmente ligado ao GPT Maker para o piloto da CECRETAR.IA.
 - [x] Preparar no produto a configuração de canal WhatsApp por empresa, sem ativar o número principal antes da validação do piloto.
@@ -94,3 +95,4 @@
 - [x] Adicionar testes automatizados para a rota de pausa e retomada da automação e o filtro de conversas por agente.
 - [x] Incluir os testes da biblioteca de mídia na configuração Vitest e cobrir o procedimento real de upload.
 - [x] Adicionar teste de componente para o evento real de arrastar e soltar na biblioteca de mídia.
+- [x] Preservar no novo painel de conversas o comando do proprietário #assumir para transferir o atendimento ao humano.
