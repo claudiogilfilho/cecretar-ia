@@ -12,6 +12,8 @@ const db = vi.hoisted(() => ({
   getWhatsAppChannel: vi.fn(),
   listAppointments: vi.fn(),
   listConversations: vi.fn(),
+  listConversationsForAgent: vi.fn(),
+  setConversationAutomation: vi.fn(),
   updateAgentConfig: vi.fn(),
   updateAppointment: vi.fn(),
   updateConversation: vi.fn(),
@@ -35,6 +37,7 @@ describe("conversations router integration", () => {
     vi.clearAllMocks();
     db.updateConversation.mockResolvedValue(undefined);
     db.appendConversationMessage.mockResolvedValue(undefined);
+    db.setConversationAutomation.mockResolvedValue({ automationPaused: true, status: "human" });
   });
 
   it("assume uma conversa, muda o status para humano e anexa a mensagem de sistema", async () => {
@@ -77,5 +80,20 @@ describe("conversations router integration", () => {
     expect(conversations.map(item => item.id)).toEqual([2, 1]);
     expect(conversations[0]?.needsHumanAttention).toBe(true);
     expect(messages.map(item => item.id)).toEqual([1, 2]);
+  });
+
+  it("filtra por especialista e permite pausar ou retomar a automação pelo painel", async () => {
+    db.listConversationsForAgent.mockResolvedValue([{ id: 7, agentId: 33, status: "bot", updatedAt: new Date("2026-08-21T12:00:00Z") }]);
+    const visitor = appRouter.createCaller(context);
+    const owner = appRouter.createCaller(authenticatedContext);
+
+    await expect(visitor.conversations.list({ agentId: 33 })).resolves.toHaveLength(1);
+    expect(db.listConversationsForAgent).toHaveBeenCalledWith(33);
+
+    await expect(owner.conversations.setAutomation({ conversationId: 7, paused: true })).resolves.toEqual({ success: true, paused: true });
+    expect(db.setConversationAutomation).toHaveBeenCalledWith(7, true, { ownerId: 9, source: "dashboard" });
+
+    db.setConversationAutomation.mockResolvedValueOnce({ automationPaused: false, status: "bot" });
+    await expect(owner.conversations.setAutomation({ conversationId: 7, paused: false })).resolves.toEqual({ success: true, paused: false });
   });
 });

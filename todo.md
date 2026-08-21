@@ -83,3 +83,14 @@
 - [x] Executar uma bateria final de regressão para especialistas, onboarding, mídia, caixa de entrada, horários, agenda e adaptadores de canal.
 - [x] Rotacionar os logs de desenvolvimento, reiniciar o servidor e registrar evidência nova sem erros de export ou runtime.
 - [x] Validar explicitamente WhatsApp, Instagram Direct e agenda/horários por navegação real bem-sucedida após a rotação de logs.
+- [x] Implementar uma área de arrastar e soltar para imagens, áudios, vídeos, documentos e PDFs por especialista.
+- [x] Permitir marcar PDFs como instruções internas para o robô, separando-os de arquivos que podem ser enviados ao interlocutor.
+- [x] Adicionar três modos de comportamento cordial por robô: Objetivo, Equilibrado e Consultivo.
+- [x] Aplicar o modo de comportamento ao simulador e ao adaptador de IA, preservando cordialidade e respeito em todos os modos.
+- [x] Permitir filtrar a caixa de entrada por robô e pausar ou retomar a automação de uma conversa específica pelo site.
+- [x] Criar testes para arrastar e soltar, PDFs de instrução, modos comportamentais e pausa de conversa.
+- [x] Integrar biblioteca por arrastar e soltar, instruções em PDF, modos comportamentais e pausa individual por conversa.
+- [x] Adicionar testes automatizados para validação de upload por arrastar e soltar, incluindo tipo e tamanho do arquivo.
+- [x] Adicionar testes automatizados para a rota de pausa e retomada da automação e o filtro de conversas por agente.
+- [x] Incluir os testes da biblioteca de mídia na configuração Vitest e cobrir o procedimento real de upload.
+- [x] Adicionar teste de componente para o evento real de arrastar e soltar na biblioteca de mídia.

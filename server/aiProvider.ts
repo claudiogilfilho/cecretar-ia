@@ -2,15 +2,20 @@ import { invokeLLM, listLLMModels } from "./_core/llm";
 import { Agent, ConversationMessage } from "../drizzle/schema";
 import { extractQualification, isQualified, resolvePilotRule } from "./agentLogic";
 import { appendHumanAvailabilityNotice } from "./conversationControl";
+import { getBehaviorGuidance } from "./behaviorModes";
 
 type ReplyInput = {
   agent: Agent;
   history: ConversationMessage[];
   incomingText: string;
   qualification: Record<string, string>;
+  instructionText?: string;
 };
 
-const promptForAgent = (agent: Agent) => `Você é ${agent.name}, assistente de atendimento do Duconde Empresarial Boutique. Fale em português brasileiro, com cordialidade e objetividade. Nunca invente preços, disponibilidade ou condições. Use apenas os dados abaixo. Não faça perguntas forçadas; pergunte somente o que for útil para avançar o atendimento. Quando o interessado quiser falar com um humano, respeite imediatamente a palavra-chave configurada.\n\nEmpresa: ${agent.companyInfo}\nServiços: ${agent.services}\nPreços: ${agent.pricing}\nHorários: ${agent.businessHours}`;
+const promptForAgent = (agent: Agent, instructionText?: string) => {
+  const behavior = getBehaviorGuidance(agent.behaviorMode);
+  return `Você é ${agent.name}, um assistente de atendimento em português brasileiro. Todos os atendimentos devem ser compreensivos, educados, respeitosos e sem pressão comercial. ${behavior.guidance} Nunca invente preços, disponibilidade, condições, fatos jurídicos, clínicos ou técnicos. Use somente os dados abaixo, admita quando não souber e ofereça atendimento humano com ${agent.transferKeyword} quando necessário.\n\nEspecialidade: ${agent.templateKey}\nEmpresa: ${agent.companyInfo}\nServiços: ${agent.services}\nPreços: ${agent.pricing}\nHorários: ${agent.businessHours}\n\nInstruções internas aprovadas:\n${instructionText?.trim() || "Nenhuma instrução adicional carregada."}`;
+};
 
 export async function generateAgentReply(input: ReplyInput) {
   const rule = resolvePilotRule(input.incomingText, input.agent);
@@ -48,7 +53,7 @@ export async function generateAgentReply(input: ReplyInput) {
     const response = await invokeLLM({
       model,
       messages: [
-        { role: "system", content: promptForAgent(input.agent) },
+        { role: "system", content: promptForAgent(input.agent, input.instructionText) },
         ...history,
         { role: "user", content: input.incomingText },
       ],
@@ -67,7 +72,7 @@ export async function generateAgentReply(input: ReplyInput) {
     };
   } catch {
     return {
-      reply: appendHumanAvailabilityNotice("Posso te ajudar com valores, estrutura, fotos, localização ou agendamento de visita. O que você gostaria de saber sobre as salas?", false),
+      reply: appendHumanAvailabilityNotice(`Posso ajudar com informações sobre ${input.agent.services}. O que você gostaria de entender primeiro?`, false),
       transferToHuman: false,
       mediaIntent: null,
       qualification,

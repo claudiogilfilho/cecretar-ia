@@ -46,6 +46,7 @@ export const agents = mysqlTable("agents", {
   websiteUrl: varchar("websiteUrl", { length: 512 }),
   instagramHandle: varchar("instagramHandle", { length: 120 }),
   onboardingSources: json("onboardingSources").$type<Record<string, string>>(),
+  behaviorMode: mysqlEnum("behaviorMode", ["objective", "balanced", "consultative"]).default("balanced").notNull(),
   provider: mysqlEnum("provider", ["embedded", "openai"]).default("embedded").notNull(),
   modelPreference: varchar("modelPreference", { length: 120 }).default("automático").notNull(),
   isActive: boolean("isActive").default(true).notNull(),
@@ -74,6 +75,8 @@ export const mediaAssets = mysqlTable("mediaAssets", {
   intent: varchar("intent", { length: 120 }).notNull(),
   flowStage: varchar("flowStage", { length: 120 }).default("Atendimento").notNull(),
   description: text("description"),
+  usage: mysqlEnum("usage", ["outbound", "instruction"]).default("outbound").notNull(),
+  extractedText: text("extractedText"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
@@ -84,6 +87,7 @@ export const conversations = mysqlTable("conversations", {
   contactPhone: varchar("contactPhone", { length: 40 }),
   channel: mysqlEnum("channel", ["simulator", "whatsapp", "instagram"]).default("simulator").notNull(),
   status: mysqlEnum("status", ["bot", "human", "closed"]).default("bot").notNull(),
+  automationPaused: boolean("automationPaused").default(false).notNull(),
   leadStatus: mysqlEnum("leadStatus", ["new", "qualified", "scheduled", "lost"]).default("new").notNull(),
   qualification: json("qualification").$type<Record<string, string>>().notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

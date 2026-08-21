@@ -52,9 +52,9 @@ async function processInboundInstagram(message: InboundInstagramMessage) {
   const existing = await findOpenInstagramConversation(channel.agentId, message.senderId);
   const conversationId = existing?.id ?? await createConversation(channel.agentId, "Contato do Instagram", "instagram", message.senderId);
   await appendConversationMessage({ conversationId, role: "lead", body: message.text, metadata: { externalMessageId: message.messageId, provider: "instagram_direct" } });
-  if (existing?.status === "human") return;
+  if (existing?.status === "human" || existing?.automationPaused) return;
   const context = await getPilotConversationContext(conversationId);
-  const reply = await generateAgentReply({ agent: context.agent, history: context.history, incomingText: message.text, qualification: context.conversation.qualification ?? {} });
+  const reply = await generateAgentReply({ agent: context.agent, history: context.history, incomingText: message.text, qualification: context.conversation.qualification ?? {}, instructionText: context.instructionText });
   await appendConversationMessage({ conversationId, role: "agent", body: reply.reply, mediaIntent: reply.mediaIntent, metadata: { source: reply.source, provider: "instagram_direct" } });
   await updateConversation(conversationId, { qualification: reply.qualification, status: reply.transferToHuman ? "human" : "bot", leadStatus: reply.qualified ? "qualified" : context.conversation.leadStatus });
   await sendInstagramText(channel.instagramBusinessAccountId!, message.senderId, reply.reply);

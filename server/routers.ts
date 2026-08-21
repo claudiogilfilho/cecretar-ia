@@ -25,8 +25,11 @@ import {
   updateWhatsAppChannel,
   updateInstagramChannel,
   listAgentAvailability,
+  listConversationsForAgent,
   replaceAgentAvailability,
+  setConversationAutomation,
 } from "./db";
+import { extractPdfInstructionText, isInstructionPdf } from "./pdfInstructions";
 import { WHATSAPP_WEBHOOK_PATH } from "./whatsappCloud";
 import { prepareCancellation, prepareHumanTakeover, prepareManualAppointment, prepareReschedule } from "./operationalFlows";
 import { buildInboxHistory, buildInboxList } from "./inboxFlows";
@@ -51,6 +54,7 @@ const agentConfigSchema = z.object({
   websiteUrl: z.string().max(512).optional(),
   instagramHandle: z.string().max(120).optional(),
   templateKey: z.string().max(80).optional(),
+  behaviorMode: z.enum(["objective", "balanced", "consultative"]),
   provider: z.enum(["embedded", "openai"]),
   modelPreference: z.string().min(2).max(120),
 });
@@ -111,15 +115,23 @@ export const appRouter = router({
       agentId: z.number(),
       filename: z.string().min(1).max(255),
       kind: z.enum(["image", "audio", "video", "document"]),
+      usage: z.enum(["outbound", "instruction"]).default("outbound"),
       intent: z.string().min(2).max(120),
       flowStage: z.string().min(2).max(120),
       description: z.string().max(500).optional(),
-      dataUrl: z.string().min(10).max(12_000_000),
+      dataUrl: z.string().min(10).max(25_000_000),
     })).mutation(async ({ input }) => {
       const match = input.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
       if (!match) throw new Error("Arquivo inválido");
       const contentType = match[1];
       const buffer = Buffer.from(match[2], "base64");
+      if (buffer.byteLength > 16 * 1024 * 1024) throw new Error("O arquivo deve ter no máximo 16 MB.");
+      if (input.usage === "instruction" && !isInstructionPdf(input.filename, contentType, input.usage)) throw new Error("Instruções internas devem ser enviadas em PDF.");
+      let extractedText: string | null = null;
+      if (isInstructionPdf(input.filename, contentType, input.usage)) {
+        try { extractedText = await extractPdfInstructionText(buffer); } catch { throw new Error("Não foi possível ler o texto desse PDF. Use um PDF com texto selecionável."); }
+        if (!extractedText) throw new Error("O PDF não possui texto legível para instrução do robô.");
+      }
       const saved = await storagePut(`agents/${input.agentId}/media/${Date.now()}-${input.filename}`, buffer, contentType);
       const id = await createMediaAsset({
         agentId: input.agentId,
@@ -130,12 +142,14 @@ export const appRouter = router({
         intent: input.intent,
         flowStage: input.flowStage,
         description: input.description ?? null,
+        usage: input.usage,
+        extractedText,
       });
       return { id, url: saved.url };
     }),
   }),
   conversations: router({
-    list: publicProcedure.query(async () => buildInboxList(await listConversations())),
+    list: publicProcedure.input(z.object({ agentId: z.number().optional() }).optional()).query(async ({ input }) => buildInboxList(input?.agentId ? await listConversationsForAgent(input.agentId) : await listConversations())),
     messages: publicProcedure.input(z.object({ conversationId: z.number() })).query(async ({ input }) => buildInboxHistory(await getConversationMessages(input.conversationId))),
     send: publicProcedure.input(z.object({
       conversationId: z.number().optional(),
@@ -153,6 +167,7 @@ export const appRouter = router({
         history: context.history,
         incomingText: input.text,
         qualification: context.conversation.qualification ?? {},
+        instructionText: context.instructionText,
       });
       await appendConversationMessage({
         conversationId,
@@ -182,6 +197,11 @@ export const appRouter = router({
       await updateConversation(input.conversationId, takeover.conversationUpdate);
       await appendConversationMessage({ conversationId: input.conversationId, role: "system", body: takeover.systemMessage, metadata: { command: "#assumir", ownerId: ctx.user.id } });
       return { success: true };
+    }),
+    setAutomation: protectedProcedure.input(z.object({ conversationId: z.number(), paused: z.boolean() })).mutation(async ({ input, ctx }) => {
+      if (ctx.user.role !== "admin") throw new Error("Somente o proprietário pode pausar ou retomar este robô");
+      const state = await setConversationAutomation(input.conversationId, input.paused, { ownerId: ctx.user.id, source: "dashboard" });
+      return { success: true, paused: state.automationPaused };
     }),
   }),
   appointments: router({

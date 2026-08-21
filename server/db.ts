@@ -137,7 +137,9 @@ export async function getAgentConfig(agentId?: number) {
   const fields = await db.select().from(qualificationFields).where(eq(qualificationFields.agentId, agent.id));
   const assets = await db.select().from(mediaAssets).where(eq(mediaAssets.agentId, agent.id)).orderBy(desc(mediaAssets.createdAt));
   const whatsappChannel = (await db.select().from(whatsappChannels).where(eq(whatsappChannels.agentId, agent.id)).limit(1))[0] ?? null;
-  return { agent, company, qualificationFields: fields.sort((a, b) => a.position - b.position), mediaAssets: assets, whatsappChannel };
+  const instructionAssets = assets.filter(asset => asset.usage === "instruction");
+  const instructionText = instructionAssets.map(asset => asset.extractedText).filter((text): text is string => Boolean(text)).join("\n\n").slice(0, 24_000);
+  return { agent, company, qualificationFields: fields.sort((a, b) => a.position - b.position), mediaAssets: assets, instructionAssets, instructionText, whatsappChannel };
 }
 
 export async function getPilotAgentConfig() {
@@ -299,6 +301,12 @@ export async function listConversations() {
   return db.select().from(conversations).orderBy(desc(conversations.updatedAt));
 }
 
+export async function listConversationsForAgent(agentId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(conversations).where(eq(conversations.agentId, agentId)).orderBy(desc(conversations.updatedAt));
+}
+
 export async function getConversationMessages(conversationId: number) {
   const db = await getDb();
   if (!db) return [];
@@ -343,6 +351,14 @@ export async function updateConversation(conversationId: number, values: Record<
   await db.update(conversations).set(values as any).where(eq(conversations.id, conversationId));
 }
 
+export async function setConversationAutomation(conversationId: number, paused: boolean, metadata: Record<string, unknown> = {}) {
+  const { getAutomationStateUpdate } = await import("./conversationAutomation");
+  const state = getAutomationStateUpdate(paused);
+  await updateConversation(conversationId, { automationPaused: state.automationPaused, status: state.status });
+  await appendConversationMessage({ conversationId, role: "system", body: state.systemMessage, metadata });
+  return state;
+}
+
 export async function getDashboardOverview() {
   await ensurePilotData();
   const [config, conversationRows, appointmentRows] = await Promise.all([
@@ -374,11 +390,11 @@ export async function updateAppointment(appointmentId: number, values: Record<st
 }
 
 export async function getPilotConversationContext(conversationId: number) {
-  const [conversation, history, config] = await Promise.all([
-    getConversation(conversationId),
+  const conversation = await getConversation(conversationId);
+  const [history, config] = await Promise.all([
     getConversationMessages(conversationId),
-    getAgentConfig(),
+    conversation ? getAgentConfig(conversation.agentId) : Promise.resolve(null),
   ]);
   if (!conversation || !config) throw new Error("Conversa ou agente não encontrado");
-  return { conversation, history: history as ConversationMessage[], agent: config.agent, mediaAssets: config.mediaAssets };
+  return { conversation, history: history as ConversationMessage[], agent: config.agent, mediaAssets: config.mediaAssets, instructionText: config.instructionText };
 }

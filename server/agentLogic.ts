@@ -3,6 +3,7 @@ export type AgentRuleConfig = {
   pricing: string;
   businessHours: string;
   companyInfo: string;
+  templateKey?: string;
 };
 
 export type QualificationSnapshot = Record<string, string>;
@@ -27,6 +28,8 @@ export function resolvePilotRule(input: string, config: AgentRuleConfig) {
       reply: "Claro. Vou encaminhar esta conversa para uma pessoa da equipe, com todo o histórico do seu atendimento.",
     };
   }
+
+  if (config.templateKey && config.templateKey !== "real_estate_rental") return null;
 
   if (/(visita|visitar|conhecer o espaco|conhecer o local|agendar)/.test(text)) {
     return {

@@ -138,9 +138,9 @@ export async function processInboundWhatsAppMessage(message: InboundWhatsAppMess
   const existing = await findConversation(channel.agentId, message.from);
   const conversationId = existing?.id ?? await createNewConversation(channel.agentId, message.contactName, "whatsapp", message.from);
   await appendMessage({ conversationId, role: "lead", body: message.text, metadata: { externalMessageId: message.messageId, provider: "meta_cloud" } });
-  if (existing?.status === "human") return;
+  if (existing?.status === "human" || existing?.automationPaused) return;
   const context = await getContext(conversationId);
-  const reply = await generateReply({ agent: context.agent, history: context.history, incomingText: message.text, qualification: context.conversation.qualification ?? {} });
+  const reply = await generateReply({ agent: context.agent, history: context.history, incomingText: message.text, qualification: context.conversation.qualification ?? {}, instructionText: context.instructionText });
   await appendMessage({ conversationId, role: "agent", body: reply.reply, mediaIntent: reply.mediaIntent, metadata: { source: reply.source, provider: "meta_cloud" } });
   await update(conversationId, { qualification: reply.qualification, status: reply.transferToHuman ? "human" : "bot", leadStatus: reply.qualified ? "qualified" : context.conversation.leadStatus });
   await dispatch({ phoneNumberId: channel.phoneNumberId!, to: message.from, agentId: channel.agentId, reply });
