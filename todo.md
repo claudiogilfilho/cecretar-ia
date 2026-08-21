@@ -73,5 +73,13 @@
 - [x] Reproduzir e corrigir os defeitos identificados na rodada de depuração.
 - [x] Validar regressão, build de produção e interface após cada correção aplicada.
 - [x] Salvar um novo checkpoint da versão estabilizada após a depuração.
-- [ ] Fazer commit e push ao GitHub com as correções finais da depuração, incluindo a correção de chaves dos horários.
-- [ ] Confirmar o hash da versão estabilizada enviada ao repositório cecretar-ia.
+- [x] Fazer commit e push ao GitHub com as correções finais da depuração, incluindo a correção de chaves dos horários.
+- [x] Confirmar o hash da versão estabilizada enviada ao repositório cecretar-ia: a0cc269.
+- [x] Pesquisar a forma suportada de distinguir mensagens do proprietário em uma conexão WhatsApp Cloud API.
+- [x] Preparar o fluxo de coexistência da Meta, documentando Embedded Signup `whatsapp_business_app_onboarding` e subscriptions necessárias.
+- [ ] Ativar Embedded Signup e as subscriptions de coexistência na conta Meta quando houver aprovação de Tech Provider ou Solution Partner.
+- [x] Adicionar teste de integração de `smb_message_echoes` pelo processador completo de Webhook, validando a assunção para status humano.
+- [x] Garantir em teste que #assumir enviado por cliente nunca assuma uma conversa e que #gente continue acionando a solicitação humana.
+- [x] Executar uma bateria final de regressão para especialistas, onboarding, mídia, caixa de entrada, horários, agenda e adaptadores de canal.
+- [x] Rotacionar os logs de desenvolvimento, reiniciar o servidor e registrar evidência nova sem erros de export ou runtime.
+- [x] Validar explicitamente WhatsApp, Instagram Direct e agenda/horários por navegação real bem-sucedida após a rotação de logs.

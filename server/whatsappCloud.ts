@@ -23,6 +23,14 @@ export type InboundWhatsAppMessage = {
   type: string;
 };
 
+export type BusinessAppEcho = {
+  messageId: string;
+  phoneNumberId: string;
+  to: string;
+  text: string;
+  type: string;
+};
+
 export function normalizeWhatsAppPayload(payload: unknown): InboundWhatsAppMessage[] {
   const body = payload as any;
   const entries = Array.isArray(body?.entry) ? body.entry : [];
@@ -39,6 +47,24 @@ export function normalizeWhatsAppPayload(payload: unknown): InboundWhatsAppMessa
       text: String(message.text?.body ?? ""),
       type: String(message.type ?? "unknown"),
     })).filter((message: InboundWhatsAppMessage) => Boolean(message.messageId && message.from));
+  }));
+}
+
+export function normalizeBusinessAppEchoes(payload: unknown): BusinessAppEcho[] {
+  const body = payload as any;
+  const entries = Array.isArray(body?.entry) ? body.entry : [];
+  return entries.flatMap((entry: any) => (entry?.changes ?? []).flatMap((change: any) => {
+    if (change?.field !== "smb_message_echoes") return [];
+    const value = change?.value;
+    const phoneNumberId = value?.metadata?.phone_number_id;
+    if (!phoneNumberId) return [];
+    return (value?.message_echoes ?? []).map((echo: any) => ({
+      messageId: String(echo.id ?? ""),
+      phoneNumberId: String(phoneNumberId),
+      to: String(echo.to ?? ""),
+      text: String(echo.text?.body ?? ""),
+      type: String(echo.type ?? "unknown"),
+    })).filter((echo: BusinessAppEcho) => Boolean(echo.messageId && echo.to));
   }));
 }
 
@@ -120,10 +146,32 @@ export async function processInboundWhatsAppMessage(message: InboundWhatsAppMess
   await dispatch({ phoneNumberId: channel.phoneNumberId!, to: message.from, agentId: channel.agentId, reply });
 }
 
+export async function processBusinessAppEcho(echo: BusinessAppEcho, dependencies: any = {}) {
+  if (echo.type !== "text" || echo.text.trim().toLowerCase() !== "#assumir") return false;
+  const getChannel = dependencies.getChannel ?? getWhatsAppChannelByPhoneNumberId;
+  const findConversation = dependencies.findConversation ?? findOpenWhatsAppConversation;
+  const appendMessage = dependencies.appendMessage ?? appendConversationMessage;
+  const update = dependencies.update ?? updateConversation;
+  const channel = await getChannel(echo.phoneNumberId);
+  if (!channel || channel.status !== "connected") return false;
+  const conversation = await findConversation(channel.agentId, echo.to);
+  if (!conversation) return false;
+  await update(conversation.id, { status: "human" });
+  await appendMessage({
+    conversationId: conversation.id,
+    role: "system",
+    body: "Atendimento assumido pelo proprietário via WhatsApp Business.",
+    metadata: { externalMessageId: echo.messageId, provider: "meta_cloud", source: "smb_message_echoes" },
+  });
+  return true;
+}
+
 export async function processWhatsAppWebhookPayload(payload: unknown, dependencies: any = {}) {
   const inbound = normalizeWhatsAppPayload(payload);
+  const echoes = normalizeBusinessAppEchoes(payload);
   await Promise.all(inbound.map(message => processInboundWhatsAppMessage(message, dependencies)));
-  return inbound.length;
+  await Promise.all(echoes.map(echo => processBusinessAppEcho(echo, dependencies)));
+  return inbound.length + echoes.length;
 }
 
 type RawBodyRequest = Request & { rawBody?: Buffer };
