@@ -111,4 +111,4 @@
 - [ ] Evitar que sugestões do simulador e controles de canal sejam comprimidos ou cortados em telas estreitas.
 - [ ] Corrigir o fallback de IA para que especialistas fora das regras determinísticas mantenham informações comerciais úteis quando o provedor não responder.
 - [ ] Adicionar teste para confirmar que o fallback apresenta condições comerciais configuradas de forma segura.
-- [ ] Salvar a versão auditada mais recente, sincronizá-la no GitHub e tornar público o repositório cecretar-ia por solicitação do proprietário.
+- [x] Salvar a versão auditada mais recente, sincronizá-la no GitHub e tornar público o repositório cecretar-ia por solicitação do proprietário.
