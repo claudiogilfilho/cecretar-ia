@@ -23,7 +23,10 @@
 - [x] Adicionar mensagem de teste e critério de aceite explícitos para cada cenário do piloto.
 - [ ] Executar conversas de teste no simulador e registrar os resultados para revisão do comportamento do agente.
 - [ ] Ajustar as respostas e regras do agente conforme os achados do teste do Duconde.
-- [ ] Carregar fotos, áudios e documentos reais do Duconde na biblioteca do especialista antes do teste de mídia por canal.
+- [x] Carregar as fotos e os áudios reais fornecidos do Duconde na biblioteca do especialista antes do teste de mídia por canal.
+- [x] Catalogar os arquivos recebidos e associar as imagens e os áudios à intenção de apresentação de salas do Duconde.
+- [ ] Carregar documentos reais do Duconde na biblioteca do especialista caso sejam fornecidos em uma rodada posterior.
+- [x] Validar no simulador a associação das mídias reais carregadas para o especialista de locação.
 - [x] Comparar a Cloud API oficial da Meta e provedores oficiais para definir a ponte de WhatsApp do Duconde.
 - [ ] Definir o procedimento seguro de migração do número atualmente ligado ao GPT Maker para o piloto da CECRETAR.IA.
 - [x] Preparar no produto a configuração de canal WhatsApp por empresa, sem ativar o número principal antes da validação do piloto.
