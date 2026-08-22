@@ -35,7 +35,7 @@ export function AIChatBox({ messages, onSendMessage, isLoading = false, height =
       </div>)}
       {isLoading && <div className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="size-4 animate-spin" />A CECRETAR.IA está respondendo...</div>}
     </div>
-    {suggestedPrompts.length > 0 && <div className="flex gap-2 overflow-x-auto border-t border-[#edf2ee] bg-white px-4 py-3">{suggestedPrompts.map(prompt => <button key={prompt} onClick={() => send(prompt)} disabled={isLoading} className="shrink-0 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 transition-colors hover:bg-emerald-100 disabled:opacity-50">{prompt}</button>)}</div>}
+      {suggestedPrompts.length > 0 && <div className="flex flex-wrap gap-2 border-t border-[#edf2ee] bg-white px-4 py-3">{suggestedPrompts.map(prompt => <button key={prompt} onClick={() => send(prompt)} disabled={isLoading} className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 transition-colors hover:bg-emerald-100 disabled:opacity-50">{prompt}</button>)}</div>}
     <form className="flex gap-2 border-t border-[#edf2ee] bg-white p-4" onSubmit={event => { event.preventDefault(); send(); }}><Input value={draft} onChange={event => setDraft(event.target.value)} placeholder={placeholder} disabled={isLoading} /><Button type="submit" disabled={isLoading || !draft.trim()}>Enviar</Button></form>
   </div>;
 }

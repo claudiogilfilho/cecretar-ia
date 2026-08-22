@@ -17,6 +17,13 @@ const promptForAgent = (agent: Agent, instructionText?: string) => {
   return `Você é ${agent.name}, um assistente de atendimento em português brasileiro. Todos os atendimentos devem ser compreensivos, educados, respeitosos e sem pressão comercial. ${behavior.guidance} Nunca invente preços, disponibilidade, condições, fatos jurídicos, clínicos ou técnicos. Use somente os dados abaixo, admita quando não souber e ofereça atendimento humano com ${agent.transferKeyword} quando necessário.\n\nEspecialidade: ${agent.templateKey}\nEmpresa: ${agent.companyInfo}\nServiços: ${agent.services}\nPreços: ${agent.pricing}\nHorários: ${agent.businessHours}\n\nInstruções internas aprovadas:\n${instructionText?.trim() || "Nenhuma instrução adicional carregada."}`;
 };
 
+export function buildFallbackReply(agent: Pick<Agent, "services" | "pricing">) {
+  const services = agent.services?.trim() || "os serviços configurados para este atendimento";
+  const pricing = agent.pricing?.trim();
+  const commercialContext = pricing ? `Sobre valores e condições: ${pricing}` : `Posso ajudar com informações sobre ${services}.`;
+  return appendHumanAvailabilityNotice(`${commercialContext} Se precisar, também posso explicar os serviços e encaminhar seu atendimento.`, false);
+}
+
 export async function generateAgentReply(input: ReplyInput) {
   const rule = resolvePilotRule(input.incomingText, input.agent);
   const qualification = extractQualification(input.incomingText, input.qualification);
@@ -72,7 +79,7 @@ export async function generateAgentReply(input: ReplyInput) {
     };
   } catch {
     return {
-      reply: appendHumanAvailabilityNotice(`Posso ajudar com informações sobre ${input.agent.services}. O que você gostaria de entender primeiro?`, false),
+      reply: buildFallbackReply(input.agent),
       transferToHuman: false,
       mediaIntent: null,
       qualification,

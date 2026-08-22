@@ -102,3 +102,13 @@
 - [x] Mapear a portabilidade do repositório CECRETAR.IA para outro provedor de IA e hospedagem.
 - [x] Verificar os custos e regras atuais de WhatsApp Cloud API e de provedores de IA externos para um cenário econômico de operação.
 - [x] Definir quais situações devem ser automatizadas e quais exigem intervenção humana no piloto do Duconde.
+- [ ] Mapear e testar todos os botões, formulários e fluxos interativos acessíveis no painel.
+- [ ] Revisar textos, alinhamento, cortes visuais, responsividade e estados de carregamento em desktop e celular.
+- [ ] Corrigir e registrar qualquer defeito confirmado na rodada abrangente de qualidade.
+- [ ] Substituir o controle nativo de data e hora por campos explícitos em formato brasileiro e validar sua conversão antes do agendamento.
+- [ ] Criar teste automatizado para a conversão de data e hora digitadas em formato brasileiro.
+- [ ] Adicionar navegação acessível entre todas as seções quando o painel for usado em celular.
+- [ ] Evitar que sugestões do simulador e controles de canal sejam comprimidos ou cortados em telas estreitas.
+- [ ] Corrigir o fallback de IA para que especialistas fora das regras determinísticas mantenham informações comerciais úteis quando o provedor não responder.
+- [ ] Adicionar teste para confirmar que o fallback apresenta condições comerciais configuradas de forma segura.
+- [ ] Salvar a versão auditada mais recente, sincronizá-la no GitHub e tornar público o repositório cecretar-ia por solicitação do proprietário.
