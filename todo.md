@@ -99,3 +99,6 @@
 - [x] Incluir os testes da biblioteca de mídia na configuração Vitest e cobrir o procedimento real de upload.
 - [x] Adicionar teste de componente para o evento real de arrastar e soltar na biblioteca de mídia.
 - [x] Preservar no novo painel de conversas o comando do proprietário #assumir para transferir o atendimento ao humano.
+- [x] Mapear a portabilidade do repositório CECRETAR.IA para outro provedor de IA e hospedagem.
+- [x] Verificar os custos e regras atuais de WhatsApp Cloud API e de provedores de IA externos para um cenário econômico de operação.
+- [x] Definir quais situações devem ser automatizadas e quais exigem intervenção humana no piloto do Duconde.
