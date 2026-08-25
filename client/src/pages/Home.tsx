@@ -4,6 +4,7 @@ import { SpecialistsPage } from "@/components/SpecialistsPage";
 import { AvailabilityPage } from "@/components/AvailabilityPage";
 import { BehaviorModePanel } from "@/components/BehaviorModePanel";
 import { ConversationControlPage } from "@/components/ConversationControlPage";
+import { VoiceSettingsPage } from "@/components/VoiceSettingsPage";
 import { MediaLibraryPage } from "@/components/MediaLibraryPage";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -16,11 +17,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { parseBrazilianAppointmentDateTime } from "@/lib/appointmentDateTime";
 import { trpc } from "@/lib/trpc";
-import { BarChart3, Bot, BriefcaseBusiness, CalendarDays, CheckCircle2, Clock3, FileText, Globe2, Image as ImageIcon, Inbox, LayoutDashboard, Loader2, MessageCircleMore, Paperclip, PhoneCall, PlayCircle, Search, Sparkles, UploadCloud, UsersRound, Video, Volume2 } from "lucide-react";
+import { AudioLines, BarChart3, Bot, BriefcaseBusiness, CalendarDays, CheckCircle2, Clock3, FileText, Globe2, Image as ImageIcon, Inbox, LayoutDashboard, Loader2, MessageCircleMore, Paperclip, PhoneCall, PlayCircle, Search, Sparkles, UploadCloud, UsersRound, Video, Volume2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-type Section = "visao" | "especialistas" | "onboarding" | "agente" | "simulador" | "conversas" | "midia" | "canal" | "horarios" | "agenda" | "metricas";
+type Section = "visao" | "especialistas" | "onboarding" | "agente" | "simulador" | "conversas" | "midia" | "canal" | "ia-voz" | "horarios" | "agenda" | "metricas";
 const logoUrl = "/manus-storage/cecretar-ia-logo_41522243.png";
 const dateFormat = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
 const navigation: Array<{ id: Section; label: string; icon: typeof Bot }> = [
@@ -32,6 +33,7 @@ const navigation: Array<{ id: Section; label: string; icon: typeof Bot }> = [
   { id: "conversas", label: "Caixa de entrada", icon: Inbox },
   { id: "midia", label: "Biblioteca de mídia", icon: Paperclip },
   { id: "canal", label: "Canal WhatsApp", icon: PhoneCall },
+  { id: "ia-voz", label: "IA e voz", icon: AudioLines },
   { id: "horarios", label: "Horários", icon: Clock3 },
   { id: "agenda", label: "Agenda", icon: CalendarDays },
   { id: "metricas", label: "Métricas", icon: BarChart3 },
@@ -81,6 +83,7 @@ export default function Home() {
       {section === "conversas" && <ConversationControlPage config={config} rows={conversations.data ?? []} onRefresh={refresh} />}
       {section === "midia" && <MediaLibraryPage config={config} onRefresh={refresh} />}
       {section === "canal" && <ChannelPage config={config} />}
+      {section === "ia-voz" && <VoiceSettingsPage agentId={config.agent.id} agentName={config.agent.name} />}
       {section === "horarios" && <AvailabilityPage agentId={config.agent.id} agentName={config.agent.name} />}
       {section === "agenda" && <Agenda config={config} rows={appointments.data ?? []} onRefresh={refresh} />}
       {section === "metricas" && <Metrics metrics={metrics} />}
