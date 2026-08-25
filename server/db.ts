@@ -196,6 +196,9 @@ export async function getVoiceProfile(agentId: number) {
   const db = await getDb();
   if (!db) return null;
   await ensurePilotData();
+  const current = (await db.select().from(voiceProfiles).where(eq(voiceProfiles.agentId, agentId)).limit(1))[0];
+  if (current) return current;
+  await db.insert(voiceProfiles).values({ agentId });
   return (await db.select().from(voiceProfiles).where(eq(voiceProfiles.agentId, agentId)).limit(1))[0] ?? null;
 }
 
