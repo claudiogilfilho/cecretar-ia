@@ -8,9 +8,13 @@ import {
   getMediaAssetForIntent,
   getPilotConversationContext,
   getWhatsAppChannelByPhoneNumberId,
+  getVoiceProfile,
   updateConversation,
   updateWhatsAppChannel,
 } from "./db";
+import { storagePut } from "./storage";
+import { transcribeAudio } from "./_core/voiceTranscription";
+import { shouldReplyWithAudio, synthesizeVoice } from "./voiceSynthesis";
 
 export const WHATSAPP_WEBHOOK_PATH = "/api/webhooks/meta/whatsapp";
 
@@ -21,6 +25,7 @@ export type InboundWhatsAppMessage = {
   contactName: string;
   text: string;
   type: string;
+  mediaId?: string;
 };
 
 export type BusinessAppEcho = {
@@ -46,6 +51,7 @@ export function normalizeWhatsAppPayload(payload: unknown): InboundWhatsAppMessa
       contactName: String(contact.profile?.name ?? "Contato do WhatsApp"),
       text: String(message.text?.body ?? ""),
       type: String(message.type ?? "unknown"),
+      ...(message.audio?.id ? { mediaId: String(message.audio.id) } : {}),
     })).filter((message: InboundWhatsAppMessage) => Boolean(message.messageId && message.from));
   }));
 }
@@ -105,9 +111,10 @@ async function sendMedia(phoneNumberId: string, to: string, asset: { kind: strin
 type ChannelReply = { reply: string; mediaIntent?: string | null };
 
 export async function dispatchAgentReplyToWhatsApp(
-  values: { phoneNumberId: string; to: string; agentId: number; reply: ChannelReply },
+  values: { phoneNumberId: string; to: string; agentId: number; reply: ChannelReply; inboundType?: string },
   dependencies: {
     resolveMedia?: typeof getMediaAssetForIntent;
+    getVoiceProfile?: typeof getVoiceProfile;
     sendTextPayload?: (phoneNumberId: string, payload: Record<string, unknown>) => Promise<unknown>;
     sendMediaAsset?: (phoneNumberId: string, to: string, asset: { kind: string; url: string }) => Promise<unknown>;
   } = {},
@@ -115,7 +122,15 @@ export async function dispatchAgentReplyToWhatsApp(
   const resolveMedia = dependencies.resolveMedia ?? getMediaAssetForIntent;
   const sendTextPayload = dependencies.sendTextPayload ?? sendCloudRequest;
   const sendMediaAsset = dependencies.sendMediaAsset ?? sendMedia;
-  await sendTextPayload(values.phoneNumberId, buildTextPayload(values.to, values.reply.reply));
+  const voiceProfile = dependencies.getVoiceProfile ? await dependencies.getVoiceProfile(values.agentId) : await getVoiceProfile(values.agentId);
+  const useAudio = voiceProfile?.provider !== "disabled" && shouldReplyWithAudio(voiceProfile?.replyMode ?? "text_only", values.inboundType ?? "text");
+  if (useAudio && voiceProfile) {
+    const synthesized = await synthesizeVoice({ text: values.reply.reply.slice(0, voiceProfile.maxAudioCharacters), provider: voiceProfile.provider, googleVoice: voiceProfile.googleVoice, elevenLabsVoiceId: voiceProfile.elevenLabsVoiceId, speechRatePercent: voiceProfile.speechRatePercent });
+    const saved = await storagePut(`agents/${values.agentId}/voice/${Date.now()}.mp3`, synthesized.audio, synthesized.contentType);
+    await sendMediaAsset(values.phoneNumberId, values.to, { kind: "audio", url: saved.url });
+  } else {
+    await sendTextPayload(values.phoneNumberId, buildTextPayload(values.to, values.reply.reply));
+  }
   if (!values.reply.mediaIntent) return null;
   const asset = await resolveMedia(values.agentId, values.reply.mediaIntent);
   if (!asset) return null;
@@ -123,8 +138,26 @@ export async function dispatchAgentReplyToWhatsApp(
   return asset;
 }
 
+async function transcribeInboundMetaAudio(mediaId: string) {
+  const token = process.env.META_WHATSAPP_ACCESS_TOKEN;
+  if (!token) throw new Error("Token Meta ausente para baixar o áudio recebido.");
+  const metadata = await fetch(`https://graph.facebook.com/v26.0/${encodeURIComponent(mediaId)}`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!metadata.ok) throw new Error(`Meta não liberou o áudio (${metadata.status}).`);
+  const { url } = await metadata.json() as { url?: string };
+  if (!url) throw new Error("Meta não retornou a URL do áudio.");
+  const audio = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!audio.ok) throw new Error(`Falha ao baixar áudio da Meta (${audio.status}).`);
+  const mime = audio.headers.get("content-type") || "audio/ogg";
+  const encoded = Buffer.from(await audio.arrayBuffer()).toString("base64");
+  const result = await transcribeAudio({ audioUrl: `data:${mime};base64,${encoded}`, language: "pt", prompt: "Transcreva com precisão uma mensagem de voz de atendimento em português brasileiro." });
+  if ("error" in result) throw new Error(result.error);
+  return result.text.trim();
+}
+
 export async function processInboundWhatsAppMessage(message: InboundWhatsAppMessage, dependencies: any = {}) {
-  if (message.type !== "text" || !message.text.trim()) return;
+  let incomingText = message.text.trim();
+  if (message.type === "audio" && message.mediaId) incomingText = dependencies.transcribeAudio ? await dependencies.transcribeAudio(message.mediaId) : await transcribeInboundMetaAudio(message.mediaId);
+  if (!incomingText || !["text", "audio"].includes(message.type)) return;
   const getChannel = dependencies.getChannel ?? getWhatsAppChannelByPhoneNumberId;
   const findConversation = dependencies.findConversation ?? findOpenWhatsAppConversation;
   const createNewConversation = dependencies.createConversation ?? createConversation;
@@ -137,13 +170,13 @@ export async function processInboundWhatsAppMessage(message: InboundWhatsAppMess
   if (!channel || channel.status !== "connected") return;
   const existing = await findConversation(channel.agentId, message.from);
   const conversationId = existing?.id ?? await createNewConversation(channel.agentId, message.contactName, "whatsapp", message.from);
-  await appendMessage({ conversationId, role: "lead", body: message.text, metadata: { externalMessageId: message.messageId, provider: "meta_cloud" } });
+  await appendMessage({ conversationId, role: "lead", body: incomingText, metadata: { externalMessageId: message.messageId, provider: "meta_cloud", inboundType: message.type } });
   if (existing?.status === "human" || existing?.automationPaused) return;
   const context = await getContext(conversationId);
-  const reply = await generateReply({ agent: context.agent, history: context.history, incomingText: message.text, qualification: context.conversation.qualification ?? {}, instructionText: context.instructionText });
+  const reply = await generateReply({ agent: context.agent, history: context.history, incomingText, qualification: context.conversation.qualification ?? {}, instructionText: context.instructionText });
   await appendMessage({ conversationId, role: "agent", body: reply.reply, mediaIntent: reply.mediaIntent, metadata: { source: reply.source, provider: "meta_cloud" } });
   await update(conversationId, { qualification: reply.qualification, status: reply.transferToHuman ? "human" : "bot", leadStatus: reply.qualified ? "qualified" : context.conversation.leadStatus });
-  await dispatch({ phoneNumberId: channel.phoneNumberId!, to: message.from, agentId: channel.agentId, reply });
+  await dispatch({ phoneNumberId: channel.phoneNumberId!, to: message.from, agentId: channel.agentId, reply, inboundType: message.type });
 }
 
 export async function processBusinessAppEcho(echo: BusinessAppEcho, dependencies: any = {}) {

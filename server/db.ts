@@ -14,6 +14,7 @@ import {
   users,
   instagramChannels,
   whatsappChannels,
+  voiceProfiles,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { calculatePilotMetrics } from "./metrics";
@@ -37,6 +38,8 @@ async function ensurePilotData() {
     if (!existingInstagramChannel) {
       await db.insert(instagramChannels).values({ companyId: existingAgent.companyId, agentId: existingAgent.id, status: "draft" });
     }
+    const existingVoice = (await db.select().from(voiceProfiles).where(eq(voiceProfiles.agentId, existingAgent.id)).limit(1))[0];
+    if (!existingVoice) await db.insert(voiceProfiles).values({ agentId: existingAgent.id });
     return existingAgent.id;
   }
 
@@ -72,6 +75,7 @@ async function ensurePilotData() {
   ]);
   await db.insert(whatsappChannels).values({ companyId, agentId, provider: "meta_cloud", status: "draft" });
   await db.insert(instagramChannels).values({ companyId, agentId, status: "draft" });
+  await db.insert(voiceProfiles).values({ agentId });
   return agentId;
 }
 
@@ -184,7 +188,27 @@ export async function createAgentFromTemplate(templateKey: string) {
   await db.insert(qualificationFields).values(template.qualificationFields.map((field, position) => ({ ...field, agentId, position, isActive: true })));
   await db.insert(whatsappChannels).values({ companyId: company.id, agentId, provider: "meta_cloud", status: "draft" });
   await db.insert(instagramChannels).values({ companyId: company.id, agentId, status: "draft" });
+  await db.insert(voiceProfiles).values({ agentId });
   return agentId;
+}
+
+export async function getVoiceProfile(agentId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  await ensurePilotData();
+  const current = (await db.select().from(voiceProfiles).where(eq(voiceProfiles.agentId, agentId)).limit(1))[0];
+  if (current) return current;
+  await db.insert(voiceProfiles).values({ agentId });
+  return (await db.select().from(voiceProfiles).where(eq(voiceProfiles.agentId, agentId)).limit(1))[0] ?? null;
+}
+
+export async function updateVoiceProfile(agentId: number, values: Partial<typeof voiceProfiles.$inferInsert>) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const current = await getVoiceProfile(agentId);
+  if (current) await db.update(voiceProfiles).set(values).where(eq(voiceProfiles.agentId, agentId));
+  else await db.insert(voiceProfiles).values({ agentId, ...values });
+  return getVoiceProfile(agentId);
 }
 
 export async function getWhatsAppChannel(agentId?: number) {

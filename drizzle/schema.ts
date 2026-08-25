@@ -177,6 +177,19 @@ export const instagramChannels = mysqlTable("instagramChannels", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
+export const voiceProfiles = mysqlTable("voiceProfiles", {
+  id: int("id").autoincrement().primaryKey(),
+  agentId: int("agentId").notNull().unique(),
+  provider: mysqlEnum("provider", ["google_chirp", "elevenlabs", "disabled"]).default("google_chirp").notNull(),
+  replyMode: mysqlEnum("replyMode", ["automatic", "text_only", "audio_only"]).default("automatic").notNull(),
+  googleVoice: varchar("googleVoice", { length: 120 }).default("pt-BR-Chirp3-HD-Aoede").notNull(),
+  elevenLabsVoiceId: varchar("elevenLabsVoiceId", { length: 120 }),
+  speechRatePercent: int("speechRatePercent").default(100).notNull(),
+  maxAudioCharacters: int("maxAudioCharacters").default(900).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Agent = typeof agents.$inferSelect;

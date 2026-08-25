@@ -28,6 +28,8 @@ import {
   listConversationsForAgent,
   replaceAgentAvailability,
   setConversationAutomation,
+  getVoiceProfile,
+  updateVoiceProfile,
 } from "./db";
 import { extractPdfInstructionText, isInstructionPdf } from "./pdfInstructions";
 import { WHATSAPP_WEBHOOK_PATH } from "./whatsappCloud";
@@ -40,6 +42,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { getVoiceProviderReadiness, synthesizeVoice } from "./voiceSynthesis";
 
 const agentConfigSchema = z.object({
   agentId: z.number(),
@@ -249,6 +252,30 @@ export const appRouter = router({
     saveDraft: publicProcedure.input(z.object({ agentId: z.number().optional(), profileHandle: z.string().max(120).optional() })).mutation(({ input }) => {
       const { agentId, ...values } = input;
       return updateInstagramChannel({ ...values, status: values.profileHandle ? "ready" : "draft", lastError: null }, agentId);
+    }),
+  }),
+  voice: router({
+    getConfig: publicProcedure.input(z.object({ agentId: z.number() })).query(async ({ input }) => ({
+      profile: await getVoiceProfile(input.agentId),
+      readiness: getVoiceProviderReadiness(),
+    })),
+    save: publicProcedure.input(z.object({
+      agentId: z.number(),
+      provider: z.enum(["google_chirp", "elevenlabs", "disabled"]),
+      replyMode: z.enum(["automatic", "text_only", "audio_only"]),
+      googleVoice: z.string().min(3).max(120),
+      elevenLabsVoiceId: z.string().max(120).nullable().optional(),
+      speechRatePercent: z.number().int().min(75).max(125),
+      maxAudioCharacters: z.number().int().min(120).max(1200),
+    })).mutation(({ input }) => {
+      const { agentId, ...values } = input;
+      return updateVoiceProfile(agentId, values);
+    }),
+    preview: publicProcedure.input(z.object({ agentId: z.number(), text: z.string().min(1).max(1200) })).mutation(async ({ input }) => {
+      const profile = await getVoiceProfile(input.agentId);
+      if (!profile || profile.provider === "disabled") throw new Error("Ative um provedor de voz antes do teste.");
+      const result = await synthesizeVoice({ text: input.text, provider: profile.provider, googleVoice: profile.googleVoice, elevenLabsVoiceId: profile.elevenLabsVoiceId, speechRatePercent: profile.speechRatePercent });
+      return { dataUrl: `data:${result.contentType};base64,${result.audio.toString("base64")}` };
     }),
   }),
   availability: router({
